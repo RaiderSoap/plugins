@@ -16,10 +16,7 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 //=============================================================================
 var $dataObjectTiles        = null;
 DataManager._databaseFiles.push({ name: '$dataObjectTiles', src: 'Game_ObjectTilesets.json' });
-// Game_CoreSystem.Core.DataManager_createGameObjects = DataManager.createGameObjects;
-// DataManager.createGameObjects = function() {
-//     Game_CoreSystem.Core.DataManager_createGameObjects.call(this);
-// };
+
 
 
 //=============================================================================
