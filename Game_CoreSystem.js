@@ -17,8 +17,6 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 var $dataObjectTiles        = null;
 DataManager._databaseFiles.push({ name: '$dataObjectTiles', src: 'Game_ObjectTilesets.json' });
 
-
-
 //=============================================================================
 // Game_Object
 //=============================================================================
@@ -30,20 +28,19 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
     this._characterName = data.characterName;
     this._characterIndex = data.index;
     
-    this._centerX = data.centerX; // the x from upper-left conor to the center x
-    this._centerY = data.centerY; 
-    this._x = x - this._centerX;
-    this._y = y - this._centerY;
-    this._characterRect = new Rectangle(this._x,this._y,data.width,data.height);
-    this._evenWidth = data.width%2===0;
+    this._x = x; 
+    this._y = y; 
+    this._width = data.width;
+    this._height = data.height;
 
     this._passableGrids = data.passableGrids; //the size of this array should be width*height (in 32)
                               //and it should store data like 0101, 1111, 1010 binary numbers
+        //Alert, need to be fix
+
     this._blendMode = 0;
     this._through = false;
-};
-Game_Object.prototype.needAdjustEvenWidth = function() {
-    return this._evenWidth;
+
+
 };
 Game_Object.prototype.characterName = function() {
     return this._characterName;
@@ -51,16 +48,17 @@ Game_Object.prototype.characterName = function() {
 Game_Object.prototype.characterIndex = function() {
     return this._characterIndex;
 };
-Game_Object.prototype.xyToIndex = function(x, y){
-    return (x-this._x) + (y-this._y)*(this._characterRect.width);
+
+Game_Object.prototype.indexToMapIndex = function(index){
+    //return (x-this._x) + (y-this._y)*(this._height);
+    var x = this._x + index % this._width;
+    var y = this._y + index / this._width;
+    y = ~~y;
+    //console.log("x: "+x+", y: "+y);
+    return x+ y*$dataMap.width;
+    //console.log("x: "+x+", y: "+y+", index: "+);
 };
-Game_Object.prototype.pos = function(x, y) {
-    return this._characterRect.contains(x,y)
-};
-Game_Object.prototype.posNt = function(x, y) {
-    // No through
-    return this.pos(x, y) && this._passableGrids[this.xyToIndex(x,y)]!=0;
-};
+
 Game_Object.prototype.screenX = function() {
     var tw = $gameMap.tileWidth();
     return Math.round(this.scrolledX() * tw + tw / 2);
@@ -76,12 +74,12 @@ Game_Object.prototype.screenZ = function() {
     return 3;
 };
 Game_Object.prototype.scrolledX = function() {
-    var shift = this._evenWidth ? 0.5 : 0;
-    return $gameMap.adjustX(this._x + this._centerX - shift + 1);
+    var shifter = this._width % 2 === 0 ? 0.5 : 1;
+    return $gameMap.adjustX(this._x - shifter);
 };
 
 Game_Object.prototype.scrolledY = function() {
-    return $gameMap.adjustY(this._y + this._centerY + 1);
+    return $gameMap.adjustY(this._y);
 };
 
 //=============================================================================
@@ -96,7 +94,14 @@ Game_Map.prototype.initialize = function() {
 Game_CoreSystem.Core.Game_Map_setup = Game_Map.prototype.setup;
 Game_Map.prototype.setup = function(mapId) {
     Game_CoreSystem.Core.Game_Map_setup.call(this,mapId);
+    
+    this._objectsLayer = new Array(this.width()*this.height());
+    for (var i = this._objectsLayer.length - 1; i >= 0; i--) {
+        this._objectsLayer[i] = 0;
+    }
+
     this.setupObjects();
+    this.setupObjectsLayer();
 };
 Game_Map.prototype.objects = function() {
     return this._objects.filter(function(obj) {
@@ -121,21 +126,25 @@ Game_Map.prototype.setupObjects = function() {
         
     });
 };
-Game_Map.prototype.objectsXy = function(x, y) {
-    return this.objects().filter(function(object) {
-        return object.pos(x, y);
+Game_Map.prototype.setupObjectsLayer = function() {
+    var self = this;
+    this._objects.forEach(function(object) {
+        for (var i = 0; i < object._passableGrids.length; i++) {
+            self._objectsLayer[object.indexToMapIndex(i)] = object._passableGrids[i];
+
+        }
     });
+
+    
+    
 };
+
 Game_CoreSystem.Core.Game_Map_isPassable = Game_Map.prototype.isPassable;
 Game_Map.prototype.isPassable = function(x, y, d) {
-    var objects = $gameMap.objectsXy(x, y);
-    if (objects.length > 0) { // there is an object contain this xy
-        return objects.every(function(obj) {
-            return obj.posNt(x, y);
-        });
-    }else{
-        return Game_CoreSystem.Core.Game_Map_isPassable.call(this,x, y, d);
-    }
+    var width = $dataMap.width;
+
+    return !this._objectsLayer[x+width*y] && Game_CoreSystem.Core.Game_Map_isPassable.call(this,x, y, d);
+
 };
 
 //-----------------------------------------------------------------------------
@@ -156,8 +165,8 @@ Sprite_Object.prototype.initialize = function(object) {
 };
 
 Sprite_Object.prototype.initMembers = function() {
-    this.anchor.x = 0.5;
-    this.anchor.y = 1;
+    //this.anchor.x = 0;
+    //this.anchor.y = 0;
     this._object = null;
 
 
