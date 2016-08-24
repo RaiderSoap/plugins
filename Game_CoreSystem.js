@@ -165,52 +165,24 @@ function Sprite_Object() {
 Sprite_Object.prototype = Object.create(Sprite_Base.prototype);
 Sprite_Object.prototype.constructor = Sprite_Object;
 
-Sprite_Object.prototype.initialize = function(object) {
+Sprite_Object.prototype.initialize = function(object,isUpperLayer) {
     Sprite_Base.prototype.initialize.call(this);
     this.initMembers();
     this.setObject(object);
-    this.createLayerSprites();
+    this._isUpperLayer = isUpperLayer;
 };
 Sprite_Object.prototype.initMembers = function() {
     this._object = null;
-    this._bitmap = null;
-    this._lowerLayer = null;
-    this._upperLayer = null;
-
 };
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
 };
-Sprite_Object.prototype.createLayerSprites = function() {
-    if (!this._lowerLayer) {
-        this._lowerLayer = new Sprite();
-        this.addChild(this._lowerLayer);
-    }
-    if (!this._upperLayer) {
-        this._upperLayer = new Sprite();
-        this.addChild(this._upperLayer);
-    }
-};
-Sprite_Object.prototype.updateLayerSprites = function() {
-
-    this.createLayerSprites();
-    this._upperLayer.bitmap = this._bitmap;
-    this._lowerLayer.bitmap = this._bitmap;
-    this._upperLayer.visible = true;
-    this._lowerLayer.visible = true;
-    this._upperLayer.setBlendColor(this.getBlendColor());
-    this._lowerLayer.setBlendColor(this.getBlendColor());
-    this._upperLayer.setColorTone(this.getColorTone());
-    this._lowerLayer.setColorTone(this.getColorTone());
-
-};
 Sprite_Object.prototype.update = function() {
     Sprite_Base.prototype.update.call(this);
     this.updateBitmap();
-    this.updateLayerSprites();
     this.updateFrame();
     this.updatePosition();
-    this.updateOther();
+    //this.updateOther();
     
 };
 Sprite_Object.prototype.updateBitmap = function() {
@@ -223,10 +195,7 @@ Sprite_Object.prototype.isImageChanged = function() {
     return ( this._characterName !== this._object.characterName());
 };
 Sprite_Object.prototype.setCharacterBitmap = function() {
-    //this.bitmap
-    this._bitmap = ImageManager.loadCharacter(this._characterName);
-    this._lowerLayer.bitmap = this._bitmap;
-    this._upperLayer.bitmap = this._bitmap;
+    this.bitmap = ImageManager.loadCharacter(this._characterName);
 };
 Sprite_Object.prototype.updateFrame = function() {
     this.updateCharacterFrame();
@@ -234,28 +203,19 @@ Sprite_Object.prototype.updateFrame = function() {
 Sprite_Object.prototype.updateCharacterFrame = function() {
     var pw = this.patternWidth();
     var ph = this.patternHeight();
-    this._lowerLayer.setFrame(0, 0, pw, ph);
-    this._upperLayer.setFrame(0, ph, pw, ph);
-
+    var sy = this._isUpperLayer ? ph : 0;
+    this.setFrame(0, sy, pw, ph);
 };
 Sprite_Object.prototype.patternWidth = function() {
-    return this._bitmap.width;
+    return this.bitmap.width;
 };
 Sprite_Object.prototype.patternHeight = function() {
-    return this._bitmap.height / 2;
+    return this.bitmap.height / 2;
 };
 Sprite_Object.prototype.updatePosition = function() {
     this.x = this._object.screenX();
     this.y = this._object.screenY();
-    console.log(this.z);
-    this.z = 0;
-    //this._lowerLayer.z = 0;
-    //this._upperLayer.z = 5;
-};
-Sprite_Object.prototype.updateOther = function() {
-    // this.opacity = this._object.opacity();
-    // this.blendMode = this._object.blendMode();
-    // this._bushDepth = this._object.bushDepth();
+    this.z = this._isUpperLayer ? 4 : 1;
 };
 
 //=============================================================================
@@ -267,12 +227,20 @@ Spriteset_Map.prototype.createLowerLayer = function(){
     this.createObjects();
 };
 Spriteset_Map.prototype.createObjects = function() {
-    this._objectSprites = [];
+    this._objectLowerLayerSprites = [];
+    this._objectUpperLayerSprites = [];
+
     $gameMap.objects().forEach(function(obj) {
-        this._objectSprites.push(new Sprite_Object(obj));
+        this._objectLowerLayerSprites.push(new Sprite_Object(obj,false));
+        this._objectUpperLayerSprites.push(new Sprite_Object(obj,true));
     }, this);
-    for (var i = 0; i < this._objectSprites.length; i++) {
-        this._tilemap.addChild(this._objectSprites[i]);
+
+    for (var i = 0; i < this._objectLowerLayerSprites.length; i++) {
+        //addChild lower layer
+        this._tilemap.addChild(this._objectLowerLayerSprites[i]);
+        //addChild upper layer
+        this._tilemap.addChild(this._objectUpperLayerSprites[i]);
+
     }
 };
 
