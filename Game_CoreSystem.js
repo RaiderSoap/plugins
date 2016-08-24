@@ -27,7 +27,7 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
     var data = $dataObjectTiles[objectId];
     this._characterName = data.characterName;
     
-    
+    this._opacity = 255;
     this._x = x; 
     this._y = y - 1; 
     this._width = data.width;
@@ -40,12 +40,13 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
     this._blendMode = 0;
     this._through = false;
 
+    this._areaRect = new Rectangle(this._x,this._y,this._width-1,this._height*2/3);
+
 
 };
 Game_Object.prototype.characterName = function() {
     return this._characterName;
 };
-
 
 Game_Object.prototype.indexToMapIndex = function(index){
     var x = this._x + index % this._width;
@@ -63,6 +64,10 @@ Game_Object.prototype.screenY = function() {
     var th = $gameMap.tileHeight();
     return Math.round(this.scrolledY() * th + th);
 };
+
+Game_Object.prototype.opacity = function() {
+    return this._opacity;
+};
     /*
      * Z coordinate:
      *
@@ -76,9 +81,6 @@ Game_Object.prototype.screenY = function() {
      * 8 : Animation
      * 9 : Destination
      */
-Game_Object.prototype.screenZ = function() {
-    return 4;
-};
 Game_Object.prototype.scrolledX = function() {
     //var shifter = this._width % 2 === 0 ? 0.5 : 1;
     return $gameMap.adjustX(this._x - 0.5);
@@ -88,6 +90,19 @@ Game_Object.prototype.scrolledY = function() {
     return $gameMap.adjustY(this._y);
 };
 
+Game_Object.prototype.update = function() {
+    //main update
+    this.updateOpcaity();
+    //console.log(this._opacity);
+
+};
+Game_Object.prototype.updateOpcaity = function() {
+    if (this._areaRect.contains($gamePlayer.x,$gamePlayer.y)) {
+        this._opacity = 175;
+    }else{
+        this._opacity = 255;
+    }
+};
 //=============================================================================
 // Game_Map
 //=============================================================================
@@ -141,7 +156,7 @@ Game_Map.prototype.setupObjectsLayer = function() {
     var self = this;
     this._objects.forEach(function(object) {
         for (var i = 0; i < object._passableGrids.length; i++) {
-            self._objectsLayer[object.indexToMapIndex(i)] = object._passableGrids[i];
+            self._objectsLayer[object.indexToMapIndex(i)] &= object._passableGrids[i];
 
         }
     });
@@ -158,6 +173,18 @@ Game_Map.prototype.isPassable = function(x, y, d) {
 Game_Map.prototype.checkObjectPassage = function(x,y,d) {
     var width = $dataMap.width;
     return this._objectsLayer[x+width*y] & (1 << (d / 2 - 1)) ;
+};
+
+Game_CoreSystem.Core.Game_Map_update = Game_Map.prototype.update;
+Game_Map.prototype.update = function(sceneActive) {
+    Game_CoreSystem.Core.Game_Map_update.call(this,sceneActive);
+    this.updateObjects();
+};
+
+Game_Map.prototype.updateObjects = function() {
+    this.objects().forEach(function(obj) {
+        obj.update();
+    });
 };
 
 //-----------------------------------------------------------------------------
@@ -187,7 +214,7 @@ Sprite_Object.prototype.update = function() {
     this.updateBitmap();
     this.updateFrame();
     this.updatePosition();
-    //this.updateOther();
+    this.updateOpcaity();
     
 };
 Sprite_Object.prototype.updateBitmap = function() {
@@ -222,7 +249,9 @@ Sprite_Object.prototype.updatePosition = function() {
     this.y = this._object.screenY();
     this.z = this._isUpperLayer ? 4 : 1;
 };
-
+Sprite_Object.prototype.updateOpcaity = function() {
+    this.opacity = this._object.opacity();
+};
 //=============================================================================
 // Spriteset_Map
 //=============================================================================
