@@ -26,7 +26,7 @@ function Game_Object() {
 Game_Object.prototype.initialize = function(objectId,x,y) {
     var data = $dataObjectTiles[objectId];
     this._characterName = data.characterName;
-    this._characterIndex = data.index;
+    
     
     this._x = x; 
     this._y = y; 
@@ -45,9 +45,7 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
 Game_Object.prototype.characterName = function() {
     return this._characterName;
 };
-Game_Object.prototype.characterIndex = function() {
-    return this._characterIndex;
-};
+
 
 Game_Object.prototype.indexToMapIndex = function(index){
     //return (x-this._x) + (y-this._y)*(this._height);
@@ -68,10 +66,22 @@ Game_Object.prototype.screenY = function() {
     var th = $gameMap.tileHeight();
     return Math.round(this.scrolledY() * th + th);
 };
-
+    /*
+     * Z coordinate:
+     *
+     * 0 : Lower tiles
+     * 1 : Lower characters
+     * 3 : Normal characters
+     * 4 : Upper tiles
+     * 5 : Upper characters
+     * 6 : Airship shadow
+     * 7 : Balloon
+     * 8 : Animation
+     * 9 : Destination
+     */
 Game_Object.prototype.screenZ = function() {
     //return this._priorityType * 2 + 1;
-    return 3;
+    return 4;
 };
 Game_Object.prototype.scrolledX = function() {
     var shifter = this._width % 2 === 0 ? 0.5 : 1;
@@ -142,15 +152,12 @@ Game_Map.prototype.setupObjectsLayer = function() {
 Game_CoreSystem.Core.Game_Map_isPassable = Game_Map.prototype.isPassable;
 Game_Map.prototype.isPassable = function(x, y, d) {
     var width = $dataMap.width;
-
-    return !this._objectsLayer[x+width*y] && Game_CoreSystem.Core.Game_Map_isPassable.call(this,x, y, d);
-
+    return !this._objectsLayer[x+width*y] && 
+        Game_CoreSystem.Core.Game_Map_isPassable.call(this,x, y, d);
 };
-
 //-----------------------------------------------------------------------------
 // Sprite_Object
 //---------------------------------------------------------------------------- 
-
 function Sprite_Object() {
     this.initialize.apply(this, arguments);
 }
@@ -162,23 +169,45 @@ Sprite_Object.prototype.initialize = function(object) {
     Sprite_Base.prototype.initialize.call(this);
     this.initMembers();
     this.setObject(object);
+    this.createLayerSprites();
 };
-
 Sprite_Object.prototype.initMembers = function() {
-    //this.anchor.x = 0;
-    //this.anchor.y = 0;
     this._object = null;
-
+    this._bitmap = null;
+    this._lowerLayer = null;
+    this._upperLayer = null;
 
 };
-
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
 };
+Sprite_Object.prototype.createLayerSprites = function() {
+    if (!this._lowerLayer) {
+        this._lowerLayer = new Sprite();
+        this.addChild(this._lowerLayer);
+    }
+    if (!this._upperLayer) {
+        this._upperLayer = new Sprite();
+        this.addChild(this._upperLayer);
+    }
+};
+Sprite_Object.prototype.updateLayerSprites = function() {
 
+    this.createLayerSprites();
+    this._upperLayer.bitmap = this._bitmap;
+    this._lowerLayer.bitmap = this._bitmap;
+    this._upperLayer.visible = true;
+    this._lowerLayer.visible = true;
+    this._upperLayer.setBlendColor(this.getBlendColor());
+    this._lowerLayer.setBlendColor(this.getBlendColor());
+    this._upperLayer.setColorTone(this.getColorTone());
+    this._lowerLayer.setColorTone(this.getColorTone());
+
+};
 Sprite_Object.prototype.update = function() {
     Sprite_Base.prototype.update.call(this);
     this.updateBitmap();
+    this.updateLayerSprites();
     this.updateFrame();
     this.updatePosition();
     this.updateOther();
@@ -187,16 +216,17 @@ Sprite_Object.prototype.update = function() {
 Sprite_Object.prototype.updateBitmap = function() {
     if (this.isImageChanged()) {
         this._characterName = this._object.characterName();
-        this._characterIndex = this._object.characterIndex();
         this.setCharacterBitmap();
     }
 };
 Sprite_Object.prototype.isImageChanged = function() {
-    return ( this._characterName !== this._object.characterName() ||
-             this._characterIndex !== this._object.characterIndex());
+    return ( this._characterName !== this._object.characterName());
 };
 Sprite_Object.prototype.setCharacterBitmap = function() {
-    this.bitmap = ImageManager.loadCharacter(this._characterName);
+    //this.bitmap
+    this._bitmap = ImageManager.loadCharacter(this._characterName);
+    this._lowerLayer.bitmap = this._bitmap;
+    this._upperLayer.bitmap = this._bitmap;
 };
 Sprite_Object.prototype.updateFrame = function() {
     this.updateCharacterFrame();
@@ -204,20 +234,23 @@ Sprite_Object.prototype.updateFrame = function() {
 Sprite_Object.prototype.updateCharacterFrame = function() {
     var pw = this.patternWidth();
     var ph = this.patternHeight();
-    var sx = (this._characterIndex % 12) * pw;
-    var sy = Math.floor(this._characterIndex / 8) * ph;
-    this.setFrame(sx, sy, pw, ph);
+    this._lowerLayer.setFrame(0, 0, pw, ph);
+    this._upperLayer.setFrame(0, ph, pw, ph);
+
 };
 Sprite_Object.prototype.patternWidth = function() {
-    return this.bitmap.width / 12;
+    return this._bitmap.width;
 };
 Sprite_Object.prototype.patternHeight = function() {
-    return this.bitmap.height / 8;
+    return this._bitmap.height / 2;
 };
 Sprite_Object.prototype.updatePosition = function() {
     this.x = this._object.screenX();
     this.y = this._object.screenY();
-    this.z = this._object.screenZ();
+    console.log(this.z);
+    this.z = 0;
+    //this._lowerLayer.z = 0;
+    //this._upperLayer.z = 5;
 };
 Sprite_Object.prototype.updateOther = function() {
     // this.opacity = this._object.opacity();
