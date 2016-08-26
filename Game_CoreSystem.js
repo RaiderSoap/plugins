@@ -135,13 +135,12 @@ Game_Object.prototype.moveByInput = function() {
 
         if (Input.isTriggered('ok')) {
             if (this.canDeploy()) {
+                SoundManager.playOk();
                 this.deployAt();
             }else{
-                //this.deployAt();
+                SoundManager.playBuzzer();
                 console.log("cannot");
             }
-
-            
         }
 
 
@@ -155,19 +154,29 @@ Game_Object.prototype.getInputDirection = function() {
     return Input.dir4;
 };
 Game_Object.prototype.canDeploy = function() {
+    var x=0,y=0,mapIndex=0;
     for (var i = this._foundationGrids.length - 1; i >= 0; i--) {
         if (this._foundationGrids[i]===0) {
             continue;
         }
-        var x = this._x + i % this._width;
-        var y = this._y + i / this._width;
+        x = this._x + i % this._width;
+        y = this._y + i / this._width;
         y = ~~y;
-        var mapIndex = x+ y*$dataMap.width;
+        mapIndex = x+ y*$dataMap.width;
         //check layer grid
         //console.log("x,y: "+x+", "+y);
         if ($gameMap._objectsFoundations[mapIndex] != 0) {
             return false;
-        }else if (!$gameMap.checkPassage(x,y,0x0f)) {
+        }
+    }
+    for (var i = this._passableGrids.length - 1; i >= 0; i--) { 
+        if (this._passableGrids[i]===0x0f) {
+            continue;
+        }
+        x = this._x + i % this._width;
+        y = this._y + i / this._width;
+        y = ~~y;
+        if (!$gameMap.checkPassage(x,y,0x0f)) {
             return false;
         }
     }
