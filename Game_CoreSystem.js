@@ -14,8 +14,11 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 //=============================================================================
 //DataManager
 //=============================================================================
-var $dataObjectTiles        = null;
-DataManager._databaseFiles.push({ name: '$dataObjectTiles', src: 'Game_ObjectTilesets.json' });
+var $dataObjectTiles = null;
+DataManager._databaseFiles.push({
+    name: '$dataObjectTiles',
+    src: 'Game_ObjectTilesets.json'
+});
 
 //=============================================================================
 // Game_Object
@@ -23,11 +26,11 @@ DataManager._databaseFiles.push({ name: '$dataObjectTiles', src: 'Game_ObjectTil
 function Game_Object() {
     this.initialize.apply(this, arguments);
 }
-Game_Object.prototype.initialize = function(objectId,x,y) {
-    this.initMembers(objectId,x,y);
+Game_Object.prototype.initialize = function(objectId, x, y) {
+    this.initMembers(objectId, x, y);
     this.createSubObjects();
 };
-Game_Object.prototype.initMembers = function(objectId,x,y) {
+Game_Object.prototype.initMembers = function(objectId, x, y) {
     var data = $dataObjectTiles[objectId];
     console.log(data.name);
     this._characterName = data.characterName;
@@ -35,7 +38,8 @@ Game_Object.prototype.initMembers = function(objectId,x,y) {
     this._opacity = 255;
     this._foundationGrids = data.foundationGrids;
     this._passableGrids = data.passableGrids; //1111 1010 
-    this._center = new Point(data.center[0],data.center[1]);
+    this._center = new Point(data.center[0], data.center[1]);
+    this._isSubObject = false;
     this._subObjectsData = data.subObjects;
     this._subObjects = [];
     this._width = data.width;
@@ -44,13 +48,13 @@ Game_Object.prototype.initMembers = function(objectId,x,y) {
     if (x && y) {
         var ox = x - this._center.x;
         var oy = y - this._center.y;
-        this._x = x; 
-        this._y = y; 
-        this._areaRect = new Rectangle(ox,oy,this._width-1,this._height*2/3);
-    }else{
+        this._x = x;
+        this._y = y;
+        this._areaRect = new Rectangle(ox, oy, this._width - 1, this._height * 2 / 3);
+    } else {
         this._deploying = true;
-        this._x = $gamePlayer.x; 
-        this._y = $gamePlayer.y - 1; 
+        this._x = $gamePlayer.x;
+        this._y = $gamePlayer.y - 1;
         this._areaRect = null;
     };
     this._movementCounter = 0;
@@ -58,14 +62,20 @@ Game_Object.prototype.initMembers = function(objectId,x,y) {
 Game_Object.prototype.characterName = function() {
     return this._characterName;
 };
-Game_Object.prototype.xyToIndex = function(x,y) {
-    return x+y*this._width;
+Game_Object.prototype.xyToIndex = function(x, y) {
+    return x + y * this._width;
 };
 Game_Object.prototype.hasSubObjects = function() {
     return this._subObjectsData.length > 0;
 };
 Game_Object.prototype.getSubObjects = function() {
     return this._subObjects;
+};
+Game_Object.prototype.isSubObject = function() {
+    return this._isSubObject;
+};
+Game_Object.prototype.setSubObject = function(bool) {
+    this._isSubObject = bool || false;
 };
 Game_Object.prototype.createSubObjects = function() {
     if (this.hasSubObjects()) {
@@ -74,19 +84,21 @@ Game_Object.prototype.createSubObjects = function() {
             //var obj = $gameMap.makeObject(data[2],this._x+data[0],this._y+data[1])
             var ox = this._x - this._center.x;
             var oy = this._y - this._center.y;
-            var obj = new Game_Object(data[2],ox+data[0],oy+data[1]);
+
+            var obj = new Game_Object(data[2], ox + data[0], oy + data[1]);
             obj._deploying = this._deploying;
+            obj.setSubObject(true);
             this._subObjects.push(obj);
         }
     }
 };
-Game_Object.prototype.indexToMapIndex = function(index){
+Game_Object.prototype.indexToMapIndex = function(index) {
     var ox = this._x - this._center.x;
     var oy = this._y - this._center.y;
     var x = ox + index % this._width;
     var y = oy + index / this._width;
     y = ~~y;
-    return x+ y*$dataMap.width;
+    return x + y * $dataMap.width;
 };
 
 Game_Object.prototype.screenX = function() {
@@ -103,19 +115,19 @@ Game_Object.prototype.screenY = function() {
 Game_Object.prototype.opacity = function() {
     return this._opacity;
 };
-    /*
-     * Z coordinate:
-     *
-     * 0 : Lower tiles
-     * 1 : Lower characters
-     * 3 : Normal characters
-     * 4 : Upper tiles
-     * 5 : Upper characters
-     * 6 : Airship shadow
-     * 7 : Balloon
-     * 8 : Animation
-     * 9 : Destination
-     */
+/*
+ * Z coordinate:
+ *
+ * 0 : Lower tiles
+ * 1 : Lower characters
+ * 3 : Normal characters
+ * 4 : Upper tiles
+ * 5 : Upper characters
+ * 6 : Airship shadow
+ * 7 : Balloon
+ * 8 : Animation
+ * 9 : Destination
+ */
 Game_Object.prototype.scrolledX = function() {
     var shifter = this._width % 2 === 0 ? 0.5 : 0;
     return $gameMap.adjustX(this._x + shifter);
@@ -134,13 +146,13 @@ Game_Object.prototype.update = function() {
 Game_Object.prototype.updateSubObjects = function() {
     this._subObjects.forEach(function(object) {
         object.update();
-    },this);
+    }, this);
 };
 Game_Object.prototype.updateOpcaity = function() {
     if (this._showCharacterPassing && this._areaRect &&
-            this._areaRect.contains($gamePlayer.x,$gamePlayer.y)) {
+        this._areaRect.contains($gamePlayer.x, $gamePlayer.y)) {
         this._opacity = 155;
-    }else{
+    } else {
         this._opacity = 255;
     }
 };
@@ -154,71 +166,79 @@ Game_Object.prototype.moveByInput = function() {
     this._movementCounter--;
     if (this._movementCounter <= 0) {
         this._movementCounter = 5;
-        switch(this.getInputDirection()){
-            case 2: 
+        switch (this.getInputDirection()) {
+            case 2:
                 this.moveStraight(2);
                 break;
-            case 4: 
+            case 4:
                 this.moveStraight(4);
                 break;
-            case 6: 
+            case 6:
                 this.moveStraight(6);
                 break;
-            case 8: 
+            case 8:
                 this.moveStraight(8);
                 break;
         }
     }
 
-        if (Input.isTriggered('ok')) {
-            if (this.canDeploy()) {
-                SoundManager.playOk();
-                this.deployAt();
-            }else{
-                SoundManager.playBuzzer();
-                console.log("cannot");
-            }
+    if (this.isSubObject()) {
+        return;
+    }
+
+    if (Input.isTriggered('ok')) {
+        if (this.canDeploy()) {
+            SoundManager.playOk();
+            this.deployAt();
+        } else {
+            SoundManager.playBuzzer();
+            console.log("cannot");
         }
-
-
+    }
 
 };
 Game_Object.prototype.moveStraight = function(d) {
-        this._x = $gameMap.roundXWithDirection(this._x, d);
-        this._y = $gameMap.roundYWithDirection(this._y, d);
+    this._x = $gameMap.roundXWithDirection(this._x, d);
+    this._y = $gameMap.roundYWithDirection(this._y, d);
 };
 Game_Object.prototype.getInputDirection = function() {
     return Input.dir4;
 };
 Game_Object.prototype.canDeploy = function() {
-    var x=0,y=0,mapIndex=0;
+    var x = 0,
+        y = 0,
+        mapIndex = 0;
     var ox = this._x - this._center.x;
     var oy = this._y - this._center.y;
     for (var i = this._foundationGrids.length - 1; i >= 0; i--) {
-        if (this._foundationGrids[i]===0) {
+        if (this._foundationGrids[i] === 0) {
             continue;
         }
         x = ox + i % this._width;
         y = oy + i / this._width;
         y = ~~y;
-        mapIndex = x+ y*$dataMap.width;
+        mapIndex = x + y * $dataMap.width;
         //check layer grid
         if ($gameMap._objectsFoundations[mapIndex] != 0) {
             return false;
         }
     }
-    for (var i = this._passableGrids.length - 1; i >= 0; i--) { 
-        if (this._passableGrids[i]===0x0f) {
+    for (var i = this._passableGrids.length - 1; i >= 0; i--) {
+        if (this._passableGrids[i] === 0x0f) {
             continue;
         }
         x = ox + i % this._width;
         y = oy + i / this._width;
         y = ~~y;
-        if (!$gameMap.checkPassage(x,y,0x0f)) {
+        if (!$gameMap.checkPassage(x, y, 0x0f)) {
             return false;
         }
     }
-    return true;
+    var result = this._subObjects.every(function(subObj) {
+        return subObj.canDeploy();
+    });
+    console.log(result);
+    return result;
 };
 
 Game_Object.prototype.deployAt = function() {
@@ -227,8 +247,51 @@ Game_Object.prototype.deployAt = function() {
     this._deploying = false;
     $gameMap.restoreCharacters();
     $gameMap.deployObject(this);
-    this._areaRect = new Rectangle(ox,oy,this._width-1,this._height*2/3);
+    this._areaRect = new Rectangle(ox, oy, this._width - 1, this._height * 2 / 3);
+    //deploy subobjects
+    this._subObjects.forEach(function(obj) {
+        obj.deployAt();
+    });
 };
+//=============================================================================
+// Game_Construction
+//=============================================================================
+function Game_Construction() {
+    this.initialize.apply(this, arguments);
+}
+
+Game_Construction.prototype = Object.create(Game_Object.prototype);
+Game_Construction.prototype.constructor = Game_Construction;
+
+Game_Construction.prototype.initialize = function() {
+    Game_Object.prototype.initialize.call(this);
+
+};
+
+Game_Construction.prototype.initMembers = function() {
+    this._maxDurability = 0;
+    
+
+
+}
+//=============================================================================
+// Game_Resource
+//=============================================================================
+function Game_Resource() {
+    this.initialize.apply(this, arguments);
+}
+
+Game_Resource.prototype = Object.create(Game_Object.prototype);
+Game_Resource.prototype.constructor = Game_Resource;
+
+Game_Resource.prototype.initialize = function() {
+    Game_Object.prototype.initialize.call(this);
+
+};
+
+Game_Resource.prototype.initMembers = function() {
+
+}
 
 //=============================================================================
 // Game_Map
@@ -238,11 +301,11 @@ Game_Map.prototype.initialize = function() {
     this._objects = [];
     this._isPausingCharacters = false;
     Game_CoreSystem.Core.Game_Map_initialize.call(this);
-    
-}    
+
+}
 Game_CoreSystem.Core.Game_Map_setup = Game_Map.prototype.setup;
 Game_Map.prototype.setup = function(mapId) {
-    Game_CoreSystem.Core.Game_Map_setup.call(this,mapId);
+    Game_CoreSystem.Core.Game_Map_setup.call(this, mapId);
 
     this.setupObjects();
     this.setupObjectsLayer();
@@ -251,7 +314,7 @@ Game_Map.prototype.pauseCharacters = function() {
     this._isPausingCharacters = true;
 };
 Game_Map.prototype.restoreCharacters = function() {
-    this._isPausingCharacters = false;  
+    this._isPausingCharacters = false;
 };
 Game_Map.prototype.objects = function() {
     return this._objects.filter(function(obj) {
@@ -267,26 +330,26 @@ Game_Map.prototype.setupObjects = function() {
         }
         if (event.list()[0].code !== 108) {
             return;
-        } 
+        }
         if (event.list()[0].parameters[0] === "Object") {
             if (event.list()[1].code !== 408) {
                 return;
             }
             var pattern = /\d+/;
-            var objID =    Number(event.list()[1].parameters[0].match(pattern));
-            this._objects.push(new Game_Object(objID,event.x,event.y));
+            var objID = Number(event.list()[1].parameters[0].match(pattern));
+            this._objects.push(new Game_Object(objID, event.x, event.y));
             event.erase();
         };
-        
-    },this);
+
+    }, this);
 };
 Game_Map.prototype.setupObjectsLayer = function() {
-    this._objectsLayer = new Array(this.width()*this.height());
-    this._objectsFoundations = new Array(this.width()*this.height());
+    this._objectsLayer = new Array(this.width() * this.height());
+    this._objectsFoundations = new Array(this.width() * this.height());
     for (var i = this._objectsLayer.length - 1; i >= 0; i--) {
         this._objectsLayer[i] = 15;
         this._objectsFoundations[i] = 0;
-    }    
+    }
     this._objects.forEach(function(object) {
         var index;
         var tempArray = [object];
@@ -298,17 +361,17 @@ Game_Map.prototype.setupObjectsLayer = function() {
                 this._objectsFoundations[index] |= tempArray[j]._foundationGrids[i];
             }
         }
-    },this);
+    }, this);
 
 };
-Game_Map.prototype.makeObject = function(objectId,x,y) {
-    var obj = new Game_Object(objectId,x,y);
+Game_Map.prototype.makeObject = function(objectId, x, y) {
+    var obj = new Game_Object(objectId, x, y);
     this._objects.push(obj);
     SceneManager._scene._spriteset.addObjectSprite(obj);
     return obj;
 };
 Game_Map.prototype.deployObject = function(object) {
-    var index=0;
+    var index = 0;
     for (var i = 0; i < object._passableGrids.length; i++) {
         index = object.indexToMapIndex(i);
         this._objectsLayer[index] &= object._passableGrids[i];
@@ -318,20 +381,20 @@ Game_Map.prototype.deployObject = function(object) {
 Game_CoreSystem.Core.Game_Map_isPassable = Game_Map.prototype.isPassable;
 Game_Map.prototype.isPassable = function(x, y, d) {
     var width = $dataMap.width;
-    return this.checkObjectPassage(x,y,d) && 
-        Game_CoreSystem.Core.Game_Map_isPassable.call(this,x, y, d);
+    return this.checkObjectPassage(x, y, d) &&
+        Game_CoreSystem.Core.Game_Map_isPassable.call(this, x, y, d);
 };
-Game_Map.prototype.checkObjectPassage = function(x,y,d) {
+Game_Map.prototype.checkObjectPassage = function(x, y, d) {
     var width = $dataMap.width;
-    return this._objectsLayer[x+width*y] & (1 << (d / 2 - 1));
+    return this._objectsLayer[x + width * y] & (1 << (d / 2 - 1));
 };
 Game_CoreSystem.Core.Game_Map_update = Game_Map.prototype.update;
 Game_Map.prototype.update = function(sceneActive) {
-    Game_CoreSystem.Core.Game_Map_update.call(this,sceneActive);
+    Game_CoreSystem.Core.Game_Map_update.call(this, sceneActive);
     this.updateObjects();
 };
 Game_Map.prototype.updateEvents = function() {
-    if(!this._isPausingCharacters){
+    if (!this._isPausingCharacters) {
         this.events().forEach(function(event) {
             event.update();
         });
@@ -351,7 +414,7 @@ Game_Map.prototype.updateObjects = function() {
 Game_CoreSystem.Core.Game_Player_update = Game_Player.prototype.update;
 Game_Player.prototype.update = function(sceneActive) {
     if (!$gameMap._isPausingCharacters) {
-        Game_CoreSystem.Core.Game_Player_update.call(this,sceneActive);
+        Game_CoreSystem.Core.Game_Player_update.call(this, sceneActive);
     }
 };
 Game_Player.prototype.tempCreateObject = function(objectId) {
@@ -368,7 +431,7 @@ function Sprite_Object() {
 Sprite_Object.prototype = Object.create(Sprite_Base.prototype);
 Sprite_Object.prototype.constructor = Sprite_Object;
 
-Sprite_Object.prototype.initialize = function(object,isUpperLayer) {
+Sprite_Object.prototype.initialize = function(object, isUpperLayer) {
     Sprite_Base.prototype.initialize.call(this);
     this.initMembers(isUpperLayer);
     this.setObject(object);
@@ -383,15 +446,15 @@ Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
     this.anchor.x = 0.5;
     var th = $gameMap.tileHeight();
-    this.anchor.y = (object._center.y*th+th/2)/(object._height*th);
+    this.anchor.y = (object._center.y * th + th / 2) / (object._height * th);
 };
 Sprite_Object.prototype.createSubSprites = function(object) {
     if (this._object.hasSubObjects) {
         var subObj = object.getSubObjects();
         subObj.forEach(function(obj) {
-            this.addChild(new Sprite_Object(obj,this._isUpperLayer));
-        },this);
-        
+            this.addChild(new Sprite_Object(obj, this._isUpperLayer));
+        }, this);
+
     }
 };
 Sprite_Object.prototype.update = function() {
@@ -400,7 +463,7 @@ Sprite_Object.prototype.update = function() {
     this.updateFrame();
     this.updatePosition();
     this.updateOpcaity();
-    
+
 };
 Sprite_Object.prototype.updateBitmap = function() {
     if (this.isImageChanged()) {
@@ -409,7 +472,7 @@ Sprite_Object.prototype.updateBitmap = function() {
     }
 };
 Sprite_Object.prototype.isImageChanged = function() {
-    return ( this._characterName !== this._object.characterName());
+    return (this._characterName !== this._object.characterName());
 };
 Sprite_Object.prototype.setCharacterBitmap = function() {
     this.bitmap = ImageManager.loadCharacter(this._characterName);
@@ -436,15 +499,15 @@ Sprite_Object.prototype.updatePosition = function() {
 };
 Sprite_Object.prototype.updateOpcaity = function() {
     if (this._isUpperLayer) {
-      this.opacity = this._object.opacity();  
+        this.opacity = this._object.opacity();
     }
-    
+
 };
 //=============================================================================
 // Spriteset_Map
 //=============================================================================
 Game_CoreSystem.Core.Spriteset_Map_createLowerLayer = Spriteset_Map.prototype.createLowerLayer;
-Spriteset_Map.prototype.createLowerLayer = function(){
+Spriteset_Map.prototype.createLowerLayer = function() {
     Game_CoreSystem.Core.Spriteset_Map_createLowerLayer.call(this);
     this.createObjects();
 };
@@ -453,33 +516,28 @@ Spriteset_Map.prototype.createObjects = function() {
     this._objectUpperLayerSprites = [];
 
     $gameMap.objects().forEach(function(obj) {
-        this.addObjectSprite(obj);        
+        this.addObjectSprite(obj);
     }, this);
 
 };
 //SceneManager._scene._spriteset.addObjectSprite
 Spriteset_Map.prototype.addObjectSprite = function(object) {
-    var sprite1 = new Sprite_Object(object,false);
-    var sprite2 = new Sprite_Object(object,true);
+    var sprite1 = new Sprite_Object(object, false);
+    var sprite2 = new Sprite_Object(object, true);
     this._objectLowerLayerSprites.push(sprite1);
     this._objectUpperLayerSprites.push(sprite2);
     this._tilemap.addChild(sprite1);
     this._tilemap.addChild(sprite2);
 
     object.getSubObjects().forEach(function(obj) {
-        var sprite1 = new Sprite_Object(obj,false);
-        var sprite2 = new Sprite_Object(obj,true);
+        var sprite1 = new Sprite_Object(obj, false);
+        var sprite2 = new Sprite_Object(obj, true);
         this._objectLowerLayerSprites.push(sprite1);
         this._objectUpperLayerSprites.push(sprite2);
         this._tilemap.addChild(sprite1);
         this._tilemap.addChild(sprite2);
-    },this)
+    }, this)
 };
-
-
-
-
-
 
 
 
