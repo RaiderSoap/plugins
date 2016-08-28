@@ -24,15 +24,20 @@ function Game_Object() {
     this.initialize.apply(this, arguments);
 }
 Game_Object.prototype.initialize = function(objectId,x,y) {
+    this.initMembers(objectId,x,y);
+    this.createSubObjects();
+};
+Game_Object.prototype.initMembers = function(objectId,x,y) {
     var data = $dataObjectTiles[objectId];
+    console.log(data.name);
     this._characterName = data.characterName;
     this._showCharacterPassing = true;
     this._opacity = 255;
     this._foundationGrids = data.foundationGrids;
-    this._passableGrids = data.passableGrids; //the size of this array should be width*height (in 32)
-                              //and it should store data like 0101, 1111, 1010 binary numbers
-        // need to be fix
+    this._passableGrids = data.passableGrids; //1111 1010 
     this._center = new Point(data.center[0],data.center[1]);
+    this._subObjectsData = data.subObjects;
+    this._subObjects = [];
     this._width = data.width;
     this._height = data.height;
     this._deploying = false;
@@ -55,6 +60,25 @@ Game_Object.prototype.characterName = function() {
 };
 Game_Object.prototype.xyToIndex = function(x,y) {
     return x+y*this._width;
+};
+Game_Object.prototype.hasSubObjects = function() {
+    return this._subObjectsData.length > 0;
+};
+Game_Object.prototype.getSubObjects = function() {
+    return this._subObjects;
+};
+Game_Object.prototype.createSubObjects = function() {
+    if (this.hasSubObjects()) {
+        for (var i = 0; i < this._subObjectsData.length; i++) {
+            var data = this._subObjectsData[i];
+            //var obj = $gameMap.makeObject(data[2],this._x+data[0],this._y+data[1])
+            var ox = this._x - this._center.x;
+            var oy = this._y - this._center.y;
+            var obj = new Game_Object(data[2],ox+data[0],oy+data[1]);
+            obj._deploying = this._deploying;
+            this._subObjects.push(obj);
+        }
+    }
 };
 Game_Object.prototype.indexToMapIndex = function(index){
     var ox = this._x - this._center.x;
@@ -105,11 +129,17 @@ Game_Object.prototype.update = function() {
     //main update
     this.updateOpcaity();
     this.updateDeployment();
+    this.updateSubObjects();
+};
+Game_Object.prototype.updateSubObjects = function() {
+    this._subObjects.forEach(function(object) {
+        object.update();
+    },this);
 };
 Game_Object.prototype.updateOpcaity = function() {
     if (this._showCharacterPassing && this._areaRect &&
             this._areaRect.contains($gamePlayer.x,$gamePlayer.y)) {
-        this._opacity = 175;
+        this._opacity = 155;
     }else{
         this._opacity = 255;
     }
@@ -173,7 +203,6 @@ Game_Object.prototype.canDeploy = function() {
         y = ~~y;
         mapIndex = x+ y*$dataMap.width;
         //check layer grid
-        //console.log("x,y: "+x+", "+y);
         if ($gameMap._objectsFoundations[mapIndex] != 0) {
             return false;
         }
@@ -260,18 +289,23 @@ Game_Map.prototype.setupObjectsLayer = function() {
     }    
     this._objects.forEach(function(object) {
         var index;
-        for (var i = 0; i < object._passableGrids.length; i++) {
-            index = object.indexToMapIndex(i);
-            this._objectsLayer[index] &= object._passableGrids[i];
-            this._objectsFoundations[index] |= object._foundationGrids[i];
+        var tempArray = [object];
+        tempArray = tempArray.concat(object.getSubObjects());
+        for (var j = 0; j < tempArray.length; j++) {
+            for (var i = 0; i < tempArray[j]._passableGrids.length; i++) {
+                index = tempArray[j].indexToMapIndex(i);
+                this._objectsLayer[index] &= tempArray[j]._passableGrids[i];
+                this._objectsFoundations[index] |= tempArray[j]._foundationGrids[i];
+            }
         }
     },this);
-    
+
 };
-Game_Map.prototype.makeObject = function(objectId) {
-    var obj = new Game_Object(objectId);
+Game_Map.prototype.makeObject = function(objectId,x,y) {
+    var obj = new Game_Object(objectId,x,y);
     this._objects.push(obj);
-    SceneManager._scene._spriteset.addObject(obj);
+    SceneManager._scene._spriteset.addObjectSprite(obj);
+    return obj;
 };
 Game_Map.prototype.deployObject = function(object) {
     var index=0;
@@ -279,7 +313,6 @@ Game_Map.prototype.deployObject = function(object) {
         index = object.indexToMapIndex(i);
         this._objectsLayer[index] &= object._passableGrids[i];
         this._objectsFoundations[index] |= object._foundationGrids[i];
-        
     }
 };
 Game_CoreSystem.Core.Game_Map_isPassable = Game_Map.prototype.isPassable;
@@ -337,15 +370,26 @@ Sprite_Object.prototype.constructor = Sprite_Object;
 
 Sprite_Object.prototype.initialize = function(object,isUpperLayer) {
     Sprite_Base.prototype.initialize.call(this);
-    this.initMembers();
+    this.initMembers(isUpperLayer);
     this.setObject(object);
-    this._isUpperLayer = isUpperLayer;
+    //this.createSubSprites(object);
 };
-Sprite_Object.prototype.initMembers = function() {
+Sprite_Object.prototype.initMembers = function(isUpperLayer) {
+    this._isUpperLayer = isUpperLayer;
     this._object = null;
+    this._subSprites = [];
 };
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
+};
+Sprite_Object.prototype.createSubSprites = function(object) {
+    if (this._object.hasSubObjects) {
+        var subObj = object.getSubObjects();
+        subObj.forEach(function(obj) {
+            this.addChild(new Sprite_Object(obj,this._isUpperLayer));
+        },this);
+        
+    }
 };
 Sprite_Object.prototype.update = function() {
     Sprite_Base.prototype.update.call(this);
@@ -389,10 +433,13 @@ Sprite_Object.prototype.updatePosition = function() {
     this.anchor.y = 1;
      // console.log(this._object.scrolledY()+" "+$gamePlayer.scrolledY()+"  "
      //     +this.y+" "+$gamePlayer.screenY());
-    this.z = 3;//this._isUpperLayer ? 4 : 1;
+    this.z = this._isUpperLayer ? 3 : 1;
 };
 Sprite_Object.prototype.updateOpcaity = function() {
-    this.opacity = this._object.opacity();
+    if (this._isUpperLayer) {
+      this.opacity = this._object.opacity();  
+    }
+    
 };
 //=============================================================================
 // Spriteset_Map
@@ -407,26 +454,28 @@ Spriteset_Map.prototype.createObjects = function() {
     this._objectUpperLayerSprites = [];
 
     $gameMap.objects().forEach(function(obj) {
-        this._objectLowerLayerSprites.push(new Sprite_Object(obj,false));
-        this._objectUpperLayerSprites.push(new Sprite_Object(obj,true));
+        this.addObjectSprite(obj);        
     }, this);
 
-    for (var i = 0; i < this._objectLowerLayerSprites.length; i++) {
-        //addChild lower layer
-        this._tilemap.addChild(this._objectLowerLayerSprites[i]);
-        //addChild upper layer
-        this._tilemap.addChild(this._objectUpperLayerSprites[i]);
-
-    }
 };
-//SceneManager._scene._spriteset.addObject
-Spriteset_Map.prototype.addObject = function(object) {
+//SceneManager._scene._spriteset.addObjectSprite
+Spriteset_Map.prototype.addObjectSprite = function(object) {
     var sprite1 = new Sprite_Object(object,false);
     var sprite2 = new Sprite_Object(object,true);
     this._objectLowerLayerSprites.push(sprite1);
     this._objectUpperLayerSprites.push(sprite2);
     this._tilemap.addChild(sprite1);
     this._tilemap.addChild(sprite2);
+
+    object.getSubObjects().forEach(function(obj) {
+        console.log("duang");
+        var sprite1 = new Sprite_Object(obj,false);
+        var sprite2 = new Sprite_Object(obj,true);
+        this._objectLowerLayerSprites.push(sprite1);
+        this._objectUpperLayerSprites.push(sprite2);
+        this._tilemap.addChild(sprite1);
+        this._tilemap.addChild(sprite2);
+    },this)
 };
 
 
