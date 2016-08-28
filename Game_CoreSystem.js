@@ -37,16 +37,17 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
     this._height = data.height;
     this._deploying = false;
     if (x && y) {
+        var ox = x - this._center.x;
+        var oy = y - this._center.y;
         this._x = x; 
-        this._y = y - 1; 
-        this._areaRect = new Rectangle(this._x,this._y+1,this._width-1,this._height*2/3);
+        this._y = y; 
+        this._areaRect = new Rectangle(ox,oy,this._width-1,this._height*2/3);
     }else{
         this._deploying = true;
         this._x = $gamePlayer.x; 
         this._y = $gamePlayer.y - 1; 
         this._areaRect = null;
     };
-    //alert(this._deploying);
     this._movementCounter = 0;
 };
 Game_Object.prototype.characterName = function() {
@@ -56,8 +57,10 @@ Game_Object.prototype.xyToIndex = function(x,y) {
     return x+y*this._width;
 };
 Game_Object.prototype.indexToMapIndex = function(index){
-    var x = this._x + index % this._width;
-    var y = this._y + index / this._width;
+    var ox = this._x - this._center.x;
+    var oy = this._y - this._center.y;
+    var x = ox + index % this._width;
+    var y = oy + index / this._width;
     y = ~~y;
     return x+ y*$dataMap.width;
 };
@@ -69,7 +72,8 @@ Game_Object.prototype.screenX = function() {
 
 Game_Object.prototype.screenY = function() {
     var th = $gameMap.tileHeight();
-    return Math.round(this.scrolledY() * th + th);
+    //console.log(Math.round(this.scrolledY() * th + th));
+    return Math.round(this.scrolledY() * th + th - 9);
 };
 
 Game_Object.prototype.opacity = function() {
@@ -89,12 +93,12 @@ Game_Object.prototype.opacity = function() {
      * 9 : Destination
      */
 Game_Object.prototype.scrolledX = function() {
-    //var shifter = this._width % 2 === 0 ? 0.5 : 1;
-    return $gameMap.adjustX(this._x - 0.5);
+    var shifter = this._width % 2 === 0 ? 0.5 : 0;
+    return $gameMap.adjustX(this._x + shifter);
 };
 
 Game_Object.prototype.scrolledY = function() {
-    return $gameMap.adjustY(this._y);
+    return $gameMap.adjustY(this._y+1);
 };
 
 Game_Object.prototype.update = function() {
@@ -158,12 +162,14 @@ Game_Object.prototype.getInputDirection = function() {
 };
 Game_Object.prototype.canDeploy = function() {
     var x=0,y=0,mapIndex=0;
+    var ox = this._x - this._center.x;
+    var oy = this._y - this._center.y;
     for (var i = this._foundationGrids.length - 1; i >= 0; i--) {
         if (this._foundationGrids[i]===0) {
             continue;
         }
-        x = this._x + i % this._width;
-        y = this._y + i / this._width;
+        x = ox + i % this._width;
+        y = oy + i / this._width;
         y = ~~y;
         mapIndex = x+ y*$dataMap.width;
         //check layer grid
@@ -176,8 +182,8 @@ Game_Object.prototype.canDeploy = function() {
         if (this._passableGrids[i]===0x0f) {
             continue;
         }
-        x = this._x + i % this._width;
-        y = this._y + i / this._width;
+        x = ox + i % this._width;
+        y = oy + i / this._width;
         y = ~~y;
         if (!$gameMap.checkPassage(x,y,0x0f)) {
             return false;
@@ -187,10 +193,12 @@ Game_Object.prototype.canDeploy = function() {
 };
 
 Game_Object.prototype.deployAt = function() {
+    var ox = this._x - this._center.x;
+    var oy = this._y - this._center.y;
     this._deploying = false;
     $gameMap.restoreCharacters();
     $gameMap.deployObject(this);
-    this._areaRect = new Rectangle(this._x,this._y+1,this._width-1,this._height*2/3);
+    this._areaRect = new Rectangle(ox,oy,this._width-1,this._height*2/3);
 };
 
 //=============================================================================
@@ -377,7 +385,11 @@ Sprite_Object.prototype.patternHeight = function() {
 Sprite_Object.prototype.updatePosition = function() {
     this.x = this._object.screenX();
     this.y = this._object.screenY();
-    this.z = this._isUpperLayer ? 4 : 1;
+    this.anchor.x = 0.5;
+    this.anchor.y = 1;
+     // console.log(this._object.scrolledY()+" "+$gamePlayer.scrolledY()+"  "
+     //     +this.y+" "+$gamePlayer.screenY());
+    this.z = 3;//this._isUpperLayer ? 4 : 1;
 };
 Sprite_Object.prototype.updateOpcaity = function() {
     this.opacity = this._object.opacity();
