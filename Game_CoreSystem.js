@@ -122,7 +122,7 @@ Game_Object.prototype.scrolledX = function() {
 };
 
 Game_Object.prototype.scrolledY = function() {
-    return $gameMap.adjustY(this._y+1);
+    return $gameMap.adjustY(this._y);
 };
 
 Game_Object.prototype.update = function() {
@@ -381,6 +381,9 @@ Sprite_Object.prototype.initMembers = function(isUpperLayer) {
 };
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
+    this.anchor.x = 0.5;
+    var th = $gameMap.tileHeight();
+    this.anchor.y = (object._center.y*th+th/2)/(object._height*th);
 };
 Sprite_Object.prototype.createSubSprites = function(object) {
     if (this._object.hasSubObjects) {
@@ -429,10 +432,6 @@ Sprite_Object.prototype.patternHeight = function() {
 Sprite_Object.prototype.updatePosition = function() {
     this.x = this._object.screenX();
     this.y = this._object.screenY();
-    this.anchor.x = 0.5;
-    this.anchor.y = 1;
-     // console.log(this._object.scrolledY()+" "+$gamePlayer.scrolledY()+"  "
-     //     +this.y+" "+$gamePlayer.screenY());
     this.z = this._isUpperLayer ? 3 : 1;
 };
 Sprite_Object.prototype.updateOpcaity = function() {
@@ -468,7 +467,6 @@ Spriteset_Map.prototype.addObjectSprite = function(object) {
     this._tilemap.addChild(sprite2);
 
     object.getSubObjects().forEach(function(obj) {
-        console.log("duang");
         var sprite1 = new Sprite_Object(obj,false);
         var sprite2 = new Sprite_Object(obj,true);
         this._objectLowerLayerSprites.push(sprite1);
