@@ -10,7 +10,7 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 //=============================================================================
 // Core Game Global Constants
 //=============================================================================
-//草你麻痹
+
 //=============================================================================
 //DataManager
 //=============================================================================
@@ -32,6 +32,7 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
     this._passableGrids = data.passableGrids; //the size of this array should be width*height (in 32)
                               //and it should store data like 0101, 1111, 1010 binary numbers
         // need to be fix
+    this._center = new Point(data.center[0],data.center[1]);
     this._width = data.width;
     this._height = data.height;
     this._deploying = false;
@@ -51,7 +52,9 @@ Game_Object.prototype.initialize = function(objectId,x,y) {
 Game_Object.prototype.characterName = function() {
     return this._characterName;
 };
-
+Game_Object.prototype.xyToIndex = function(x,y) {
+    return x+y*this._width;
+};
 Game_Object.prototype.indexToMapIndex = function(index){
     var x = this._x + index % this._width;
     var y = this._y + index / this._width;
