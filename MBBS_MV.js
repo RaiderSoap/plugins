@@ -3207,10 +3207,9 @@ Spriteset_Map.prototype.createCharacters = function() {
     this._missiles = [];
     // this._bloods = [];
 
-    var self = this;
     $gameMap.getMissiles().forEach(function(game_arrow) {
-        self.createMissileSprite(game_arrow);
-    });
+        this.createMissileSprite(game_arrow);
+    },this);
 
 };
 Spriteset_Map.prototype.createMissileSprite = function(game_arrow) {

@@ -10,6 +10,8 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 //=============================================================================
 // Core Game Global Constants
 //=============================================================================
+Game_CoreSystem.OBEJECT_ID_TREES = [1, 2, 3, 4, 5, 6, 7];
+Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS = [9, 10, 11, 12];
 
 //=============================================================================
 //DataManager
@@ -19,7 +21,24 @@ DataManager._databaseFiles.push({
     name: '$dataObjectTiles',
     src: 'Game_ObjectTilesets.json'
 });
-
+//=============================================================================
+//ImageManager
+//=============================================================================
+ImageManager.loadObject = function(filename, hue) {
+    return this.loadBitmap('img/object/', filename, hue, false);
+};
+//-----------------------------------------------------------------------------
+// Game_Player
+//---------------------------------------------------------------------------- 
+Game_CoreSystem.Core.Game_Player_update = Game_Player.prototype.update;
+Game_Player.prototype.update = function(sceneActive) {
+    if (!$gameMap._isPausingCharacters) {
+        Game_CoreSystem.Core.Game_Player_update.call(this, sceneActive);
+    }
+};
+Game_Player.prototype.tempCreateObject = function(objectId) {
+    $gameMap.makeObject(objectId);
+};
 //=============================================================================
 // Game_Object
 //=============================================================================
@@ -44,6 +63,7 @@ Game_Object.prototype.initMembers = function(objectId, x, y) {
     this._subObjects = [];
     this._width = data.width;
     this._height = data.height;
+    this._canDelete = false;
     this._deploying = false;
     if (x && y) {
         var ox = x - this._center.x;
@@ -81,11 +101,10 @@ Game_Object.prototype.createSubObjects = function() {
     if (this.hasSubObjects()) {
         for (var i = 0; i < this._subObjectsData.length; i++) {
             var data = this._subObjectsData[i];
-            //var obj = $gameMap.makeObject(data[2],this._x+data[0],this._y+data[1])
             var ox = this._x - this._center.x;
             var oy = this._y - this._center.y;
 
-            var obj = new Game_Object(data[2], ox + data[0], oy + data[1]);
+            var obj = $gameMap.newObject(data[2], ox + data[0], oy + data[1]);
             obj._deploying = this._deploying;
             obj.setSubObject(true);
             this._subObjects.push(obj);
@@ -107,8 +126,7 @@ Game_Object.prototype.screenX = function() {
 };
 
 Game_Object.prototype.screenY = function() {
-    var th = $gameMap.tileHeight();
-    //console.log(Math.round(this.scrolledY() * th + th));
+    var th = $gameMap.tileHeight();;
     return Math.round(this.scrolledY() * th + th - 9);
 };
 
@@ -129,8 +147,8 @@ Game_Object.prototype.opacity = function() {
  * 9 : Destination
  */
 Game_Object.prototype.scrolledX = function() {
-    var shifter = this._width % 2 === 0 ? 0.5 : 0;
-    return $gameMap.adjustX(this._x + shifter);
+    //var shifter = this._width % 2 === 0 ? 0.5 : 0;
+    return $gameMap.adjustX(this._x);
 };
 
 Game_Object.prototype.scrolledY = function() {
@@ -237,7 +255,6 @@ Game_Object.prototype.canDeploy = function() {
     var result = this._subObjects.every(function(subObj) {
         return subObj.canDeploy();
     });
-    console.log(result);
     return result;
 };
 
@@ -252,7 +269,26 @@ Game_Object.prototype.deployAt = function() {
     this._subObjects.forEach(function(obj) {
         obj.deployAt();
     });
+    //call observer
+    this.onObjectDeployed();
 };
+
+Game_Object.prototype.setTagDelete = function() {
+    this._canDelete = true;
+    this.getSubObjects().forEach(function(obj) {
+        obj.setTagDelete();
+    });
+};
+Game_Object.prototype.canDelete = function() {
+    return this._canDelete;
+};
+
+// observers
+Game_Object.prototype.onObjectDeployed = function() {
+
+};
+
+
 //=============================================================================
 // Game_Construction
 //=============================================================================
@@ -263,20 +299,22 @@ function Game_Construction() {
 Game_Construction.prototype = Object.create(Game_Object.prototype);
 Game_Construction.prototype.constructor = Game_Construction;
 
-Game_Construction.prototype.initialize = function() {
-    Game_Object.prototype.initialize.call(this);
+Game_Construction.prototype.initialize = function(objectId, x, y) {
+    Game_Object.prototype.initialize.call(this, objectId, x, y);
 
 };
 
-Game_Construction.prototype.initMembers = function() {
-    this._maxDurability = 0;
-    
+Game_Construction.prototype.initMembers = function(objectId, x, y) {
+        Game_Object.prototype.initMembers.call(this, objectId, x, y);
+        this._maxDurability = 0;
+        this._requiredResources = [];
+        this._requiredResourcesAmoundt = [];
+        this._pointRecieveMaterial = null;
 
-
-}
-//=============================================================================
-// Game_Resource
-//=============================================================================
+    }
+    //=============================================================================
+    // Game_Resource
+    //=============================================================================
 function Game_Resource() {
     this.initialize.apply(this, arguments);
 }
@@ -284,15 +322,19 @@ function Game_Resource() {
 Game_Resource.prototype = Object.create(Game_Object.prototype);
 Game_Resource.prototype.constructor = Game_Resource;
 
-Game_Resource.prototype.initialize = function() {
-    Game_Object.prototype.initialize.call(this);
+Game_Resource.prototype.initialize = function(objectId, x, y) {
+    Game_Object.prototype.initialize.call(this, objectId, x, y);
 
 };
 
-Game_Resource.prototype.initMembers = function() {
+Game_Resource.prototype.initMembers = function(objectId, x, y) {
+    Game_Object.prototype.initMembers.call(this, objectId, x, y);
 
 }
 
+Game_Resource.prototype.harvest = function() {
+
+};
 //=============================================================================
 // Game_Map
 //=============================================================================
@@ -303,6 +345,7 @@ Game_Map.prototype.initialize = function() {
     Game_CoreSystem.Core.Game_Map_initialize.call(this);
 
 }
+
 Game_CoreSystem.Core.Game_Map_setup = Game_Map.prototype.setup;
 Game_Map.prototype.setup = function(mapId) {
     Game_CoreSystem.Core.Game_Map_setup.call(this, mapId);
@@ -310,17 +353,21 @@ Game_Map.prototype.setup = function(mapId) {
     this.setupObjects();
     this.setupObjectsLayer();
 };
+
 Game_Map.prototype.pauseCharacters = function() {
     this._isPausingCharacters = true;
 };
+
 Game_Map.prototype.restoreCharacters = function() {
     this._isPausingCharacters = false;
 };
+
 Game_Map.prototype.objects = function() {
     return this._objects.filter(function(obj) {
         return !!obj;
     });
 };
+
 Game_Map.prototype.setupObjects = function() {
     this._objects = [];
     this.events().forEach(function(event) {
@@ -337,12 +384,13 @@ Game_Map.prototype.setupObjects = function() {
             }
             var pattern = /\d+/;
             var objID = Number(event.list()[1].parameters[0].match(pattern));
-            this._objects.push(new Game_Object(objID, event.x, event.y));
+            this._objects.push($gameMap.newObject(objID, event.x, event.y));
             event.erase();
         };
 
     }, this);
 };
+
 Game_Map.prototype.setupObjectsLayer = function() {
     this._objectsLayer = new Array(this.width() * this.height());
     this._objectsFoundations = new Array(this.width() * this.height());
@@ -364,12 +412,24 @@ Game_Map.prototype.setupObjectsLayer = function() {
     }, this);
 
 };
+
+Game_Map.prototype.newObject = function(objectId, x, y) {
+    if (Game_CoreSystem.OBEJECT_ID_TREES.indexOf(objectId) !== -1) {
+        return new Game_Resource(objectId, x, y);
+    } else if (Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS.indexOf(objectId) !== -1) {
+        return new Game_Construction(objectId, x, y);
+    } else {
+        throw new Error('No such Object #' + objectId);
+    }
+};
+
 Game_Map.prototype.makeObject = function(objectId, x, y) {
-    var obj = new Game_Object(objectId, x, y);
+    var obj = $gameMap.newObject(objectId, x, y);
     this._objects.push(obj);
     SceneManager._scene._spriteset.addObjectSprite(obj);
     return obj;
 };
+
 Game_Map.prototype.deployObject = function(object) {
     var index = 0;
     for (var i = 0; i < object._passableGrids.length; i++) {
@@ -378,49 +438,55 @@ Game_Map.prototype.deployObject = function(object) {
         this._objectsFoundations[index] |= object._foundationGrids[i];
     }
 };
+
+Game_Map.prototype.eraseObject = function(object) {
+    if (typeof(object) === "number") {
+        if (!this._objects[object]) {
+            return;
+        }
+        this._objects[object].setTagDelete();
+        this._objects.splice(object, 1);
+    } else {
+        var index = this._objects.indexOf(object);
+        if (index === -1) {
+            return;
+        }
+        this._objects[index].setTagDelete();
+        this._objects.splice(index, 1);
+    }
+    SceneManager._scene._spriteset.removeObjectSprites();
+    object = null;
+};
+
 Game_CoreSystem.Core.Game_Map_isPassable = Game_Map.prototype.isPassable;
 Game_Map.prototype.isPassable = function(x, y, d) {
     var width = $dataMap.width;
     return this.checkObjectPassage(x, y, d) &&
         Game_CoreSystem.Core.Game_Map_isPassable.call(this, x, y, d);
 };
+
 Game_Map.prototype.checkObjectPassage = function(x, y, d) {
     var width = $dataMap.width;
     return this._objectsLayer[x + width * y] & (1 << (d / 2 - 1));
 };
+
 Game_CoreSystem.Core.Game_Map_update = Game_Map.prototype.update;
 Game_Map.prototype.update = function(sceneActive) {
     Game_CoreSystem.Core.Game_Map_update.call(this, sceneActive);
     this.updateObjects();
 };
+Game_CoreSystem.Core.Game_Map_updateEvents = Game_Map.prototype.updateEvents;
 Game_Map.prototype.updateEvents = function() {
     if (!this._isPausingCharacters) {
-        this.events().forEach(function(event) {
-            event.update();
-        });
-        this._commonEvents.forEach(function(event) {
-            event.update();
-        });
+        Game_CoreSystem.Core.Game_Map_updateEvents.call(this);
     }
 };
+
 Game_Map.prototype.updateObjects = function() {
     this.objects().forEach(function(obj) {
         obj.update();
     });
 };
-//-----------------------------------------------------------------------------
-// Game_Player
-//---------------------------------------------------------------------------- 
-Game_CoreSystem.Core.Game_Player_update = Game_Player.prototype.update;
-Game_Player.prototype.update = function(sceneActive) {
-    if (!$gameMap._isPausingCharacters) {
-        Game_CoreSystem.Core.Game_Player_update.call(this, sceneActive);
-    }
-};
-Game_Player.prototype.tempCreateObject = function(objectId) {
-    $gameMap.makeObject(objectId);
-};
-
 //-----------------------------------------------------------------------------
 // Sprite_Object
 //---------------------------------------------------------------------------- 
@@ -444,8 +510,10 @@ Sprite_Object.prototype.initMembers = function(isUpperLayer) {
 };
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
-    this.anchor.x = 0.5;
     var th = $gameMap.tileHeight();
+    var tw = $gameMap.tileWidth();
+    //set anchor
+    this.anchor.x = (object._center.x * tw + tw / 2) / (object._width * tw);
     this.anchor.y = (object._center.y * th + th / 2) / (object._height * th);
 };
 Sprite_Object.prototype.createSubSprites = function(object) {
@@ -454,7 +522,6 @@ Sprite_Object.prototype.createSubSprites = function(object) {
         subObj.forEach(function(obj) {
             this.addChild(new Sprite_Object(obj, this._isUpperLayer));
         }, this);
-
     }
 };
 Sprite_Object.prototype.update = function() {
@@ -475,7 +542,7 @@ Sprite_Object.prototype.isImageChanged = function() {
     return (this._characterName !== this._object.characterName());
 };
 Sprite_Object.prototype.setCharacterBitmap = function() {
-    this.bitmap = ImageManager.loadCharacter(this._characterName);
+    this.bitmap = ImageManager.loadObject(this._characterName);
 };
 Sprite_Object.prototype.updateFrame = function() {
     this.updateCharacterFrame();
@@ -501,7 +568,6 @@ Sprite_Object.prototype.updateOpcaity = function() {
     if (this._isUpperLayer) {
         this.opacity = this._object.opacity();
     }
-
 };
 //=============================================================================
 // Spriteset_Map
@@ -538,8 +604,27 @@ Spriteset_Map.prototype.addObjectSprite = function(object) {
         this._tilemap.addChild(sprite2);
     }, this)
 };
+Spriteset_Map.prototype.removeObjectSprites = function() {
+    this._objectLowerLayerSprites.forEach(function(sprite) {
+        if (sprite._object.canDelete()) {
+            this._tilemap.removeChild(sprite);
+            sprite = null;
+        }
+    },this);
+    this._objectUpperLayerSprites.forEach(function(sprite) {
+        if (sprite._object.canDelete()) {
+            this._tilemap.removeChild(sprite);
+            sprite = null;
+        }
+    },this);
+    this._objectLowerLayerSprites = this._objectLowerLayerSprites.filter(function(sprite) {
+        return !sprite._object.canDelete();
+    });
+    this._objectUpperLayerSprites = this._objectUpperLayerSprites.filter(function(sprite) {
+        return !sprite._object.canDelete();
+    });
 
-
+};
 
 //=============================================================================
 // End of File
