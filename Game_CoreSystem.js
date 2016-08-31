@@ -287,7 +287,9 @@ Game_Object.prototype.canDelete = function() {
 Game_Object.prototype.onObjectDeployed = function() {
 
 };
+Game_Object.prototype.onObjectDestoryed = function() {
 
+};
 
 //=============================================================================
 // Game_Construction
@@ -414,9 +416,9 @@ Game_Map.prototype.setupObjectsLayer = function() {
 };
 
 Game_Map.prototype.newObject = function(objectId, x, y) {
-    if (Game_CoreSystem.OBEJECT_ID_TREES.indexOf(objectId) !== -1) {
+    if (Game_CoreSystem.OBEJECT_ID_TREES.contains(objectId)) {
         return new Game_Resource(objectId, x, y);
-    } else if (Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS.indexOf(objectId) !== -1) {
+    } else if (Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS.contains(objectId)) {
         return new Game_Construction(objectId, x, y);
     } else {
         throw new Error('No such Object #' + objectId);
@@ -444,6 +446,7 @@ Game_Map.prototype.eraseObject = function(object) {
         if (!this._objects[object]) {
             return;
         }
+        this._objects[object].onObjectDestoryed();
         this._objects[object].setTagDelete();
         this._objects.splice(object, 1);
     } else {
@@ -451,6 +454,7 @@ Game_Map.prototype.eraseObject = function(object) {
         if (index === -1) {
             return;
         }
+        object.onObjectDestoryed();
         this._objects[index].setTagDelete();
         this._objects.splice(index, 1);
     }

@@ -3,7 +3,9 @@
 // MBBS_BattlerHPBar.js
 //=============================================================================
 /*:
- * @plugindesc v1.0 MBBS Plugins: MBBS_BattlerHPBar
+ * @plugindesc v1.0 MBBS Plugins: 
+    群战系统MV插件系列之 - 群战士兵显示血条 【XP移植】
+    MBBS_BattlerHPBar
  * @author Chivalry Studio Plugins / Ivan
   
   

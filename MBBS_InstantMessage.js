@@ -4,7 +4,7 @@
 //=============================================================================
 /*:
  * @plugindesc v1.0 Instant Message Plugins 
-   群战系统MV插件系列之 - 即时消息系统 【移植】
+   群战系统MV插件系列之 - 即时消息系统 【XP移植】
  * @author Chivalry Studio Plugins / Ivan
 
  * @param ---Notification---
