@@ -86,7 +86,7 @@ EFSBattleManager.NORMAL_COLOR = '#FFFFFF';
 EFSBattleManager.DEFAULT_BODY_DISAPPEAR_TIME = 660;
 EFSBattleManager.FRAME_PER_SECOND = 60;
 EFSBattleManager.MISSILES_DISAPPEAR_TIME = 720;
-EFSBattleManager.BLOOD_DISAPPEAR_TIME = 600;
+EFSBattleManager.BLOOD_DISAPPEAR_TIME = 660;
 EFSBattleManager.ENABLE_ANIMATIONS = true;
 EFSBattleManager.PLAYER_ATK_ANIMATION = 5;
 
@@ -1154,6 +1154,13 @@ Game_EFS_Hero.prototype.attack = function() {
     this.findTargesThenDamage();
 
 };
+// function pausecomp(millis)
+//  {
+//   var date = new Date();
+//   var curDate = null;
+//   do { curDate = new Date(); }
+//   while(curDate-date < millis);
+// }
 Game_EFS_Hero.prototype.onAttackOver = function() {
     
 
@@ -1166,8 +1173,7 @@ Game_EFS_Hero.prototype.onAttackOver = function() {
     }
     this.setDirectionFix(false);
     this.cancelAction();
-    
-
+    //pausecomp(50);
 };
 Game_EFS_Hero.prototype.findTargesThenDamage = function() {
     var listFighters = [];
@@ -1204,13 +1210,17 @@ Game_EFS_Hero.prototype.findTargesThenDamage = function() {
         self.damageProcess(f);
         var list = EFSBattleManager.PLAYER_ATK_TARGET_ANIMATIONS;
         f.requestAnimation(list[Math.randomInt(list.length)]);
-        // if (! f.core().isHeavy()) {
-        //     f.moveBackward();
-        // }
+        if (! f.core().isHeavy()) {
+            f.moveBackward();
+        }
     });
+    if (listFighters.length > 0) {
+        $gameScreen.startShake(3,3,3);
 
+    }
 
 };
+
 Game_EFS_Hero.prototype.dealDamage = function(rpg_battler) {
     var critical = Math.randomInt(100)<this._criticalHit;
     var d = rpg_battler.getInstance().direction();
@@ -1235,6 +1245,7 @@ Game_EFS_Hero.prototype.dealDamage = function(rpg_battler) {
     rpg_battler.getInstance().startDamagePopup(displayDamage,critical);
 
 };
+
 Game_EFS_Hero.prototype.canMove = function() {
     if ($gameMap.isEventRunning() || $gameMessage.isBusy()) {
         return false;
@@ -1469,7 +1480,6 @@ Game_EFS_CommandUnits.prototype.assignSlotFormation = function() {
     // this._captain.turnTowardCharacter(this._captain._closetTarget);
         var d = this._captain.direction();
     var formation;
-    console.log(d);
     formation = this._formation[d/2-1];
     // switch (d) {
     // case 2:
@@ -3073,8 +3083,9 @@ Sprite_Blood.prototype.initialize = function(fighter) {
     this.opacity = 145;
     this.setFrame(this._sx, this._sy, this._bitMapWidth, this._bitMapHeight);
     this._stopCount = 0;
-        this.scale.x = 0;
-        this.scale.y = 0;
+    this.scale.x = 0;
+    this.scale.y = 0;
+    //this.blendMode = 5;
 };
 Sprite_Blood.prototype.isDeletable = function() {
     return this._deletable;

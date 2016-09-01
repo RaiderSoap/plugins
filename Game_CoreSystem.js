@@ -432,6 +432,10 @@ Game_Map.prototype.makeObject = function(objectId, x, y) {
     return obj;
 };
 
+Game_Map.prototype.spawnTreeObject = function(x,y) {
+    
+};
+
 Game_Map.prototype.deployObject = function(object) {
     var index = 0;
     for (var i = 0; i < object._passableGrids.length; i++) {
@@ -511,6 +515,8 @@ Sprite_Object.prototype.initMembers = function(isUpperLayer) {
     this._isUpperLayer = isUpperLayer;
     this._object = null;
     this._subSprites = [];
+    //this.tint = Math.random() * 0xFFFFFF;
+    //this.blendMode = 7;
 };
 Sprite_Object.prototype.setObject = function(object) {
     this._object = object;
