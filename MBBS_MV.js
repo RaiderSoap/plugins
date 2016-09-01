@@ -236,6 +236,8 @@ RPG_EFS_Battler.prototype.initMembers = function(soldierId, cuId) {
     this._needDisplayBar = true;
     this._displayDamage = 0;
 };
+//----------------------------------------------------------------------------
+//---------------------------Accessors Related---------------------------------
 RPG_EFS_Battler.prototype.isPlayer = function() {
     return this._isPlayer;
 };
@@ -275,61 +277,15 @@ RPG_EFS_Battler.prototype.generateKilled = function() {
         this._isKilled = true;
     }
 };
-RPG_EFS_Battler.prototype.dealDamage = function(rpg_battler) {
-    var critical = Math.randomInt(100)<this._criticalHit;
-    var d = rpg_battler.getInstance().direction();
-    var damageReduce;
-    if (critical){
-        rpg_battler.getInstance().resetAnimation(0);
-        damageReduce = 1;
-        if (this._isPlayer && ! rpg_battler.isHeavy()) {
-            rpg_battler.getInstance().moveBackward();
-        }
-    }
-    else{
-        damageReduce = this.calculateDamageReduce(d);
-    }
-    if (!this._isPlayer && ! rpg_battler.isHeavy()) {
-        rpg_battler.getInstance().moveBackward();
-    }
-    // if (rpg_battler.getInstance().isAttacking())
-    //     rpg_battler.getInstance().resetAnimation(0);
-    // rpg_battler.receiveDamagePiercing(Math.floor(this.piercingAtk*damageReduce));
-    // rpg_battler.receiveDamage(Math.floor(this.baseAtk*damageReduce),this._instance.direction());
-
-    var finalPiercingAtk = Math.floor(this.piercingAtk*damageReduce);
-    var finalAtk = Math.floor(this.baseAtk*damageReduce);
-    //var displayDamage = finalAtk+finalPiercingAtk;
-    rpg_battler.receiveDamagePiercing(finalPiercingAtk);
-    rpg_battler.receiveDamage(finalAtk,this._instance.direction());
-
-    if (this._isPlayer){
-        rpg_battler.getInstance().startDamagePopup(rpg_battler._displayDamage,critical);
-    }
-    rpg_battler._displayDamage = 0;
-    
-};
-RPG_EFS_Battler.prototype.dealMissileDamage = function(rpg_battler, missile) {
-    var d = missile.direction();
-    var damageReduce;
-    if (Math.randomInt(100)<this._criticalHit) 
-        damageReduce = 1;
-    else{
-        damageReduce = rpg_battler.calculateDamageReduce(d);
-    }
-    // rpg_battler.getInstance().resetAnimation(0);
-    rpg_battler.receiveDamagePiercing(Math.floor(this.sPiercingAtk*damageReduce));
-    rpg_battler.receiveDamage(Math.floor(this.sBaseAtk*damageReduce),missile.direction());
-};
-RPG_EFS_Battler.prototype.receiveDamage = function(damage,incomingDirection) {
-    var flowing = Math.randomInt(15)-5;
-    var shieldHP = 0;
-    if (this._instance.isDefending()) {
-        shieldHP = Math.floor(this.shield*this.calculateShieldReduce(incomingDirection));
-    }
+//----------------------------------------------------------------------------
+//---------------------------Damage Related----------------------------------
+RPG_EFS_Battler.prototype.receiveDamage = function(damage,shieldReduce) {
+    var flowing  = Math.randomInt(15)-5;
+    var shieldHP = Math.floor(this.shield*shieldReduce);
     damage -= shieldHP;
     damage -= this.armor;
     damage += flowing;
+    //console.log();
     if (damage <= 0) {
         damage = Math.randomInt(5);
     }
@@ -340,21 +296,11 @@ RPG_EFS_Battler.prototype.receiveDamagePiercing = function(damage) {
     this._hp -= damage;
     this._displayDamage += damage;
 };
-RPG_EFS_Battler.prototype.calculateDamageReduce = function(d) {
-    switch(this._instance.direction()){
-        case 2:  return d == 8 ? 0.5 : d == 4 ? 0.75 : d == 6 ? 0.75 : 1; 
-        case 4:  return d == 6 ? 0.5 : d == 2 ? 0.75 : d == 8 ? 0.75 : 1; 
-        case 6:  return d == 4 ? 0.5 : d == 2 ? 0.75 : d == 8 ? 0.75 : 1; 
-        case 8:  return d == 2 ? 0.5 : d == 4 ? 0.75 : d == 6 ? 0.75 : 1; 
-    };
+RPG_EFS_Battler.prototype.getDisplayDamage = function() {
+    return this._displayDamage;
 };
-RPG_EFS_Battler.prototype.calculateShieldReduce = function(d) {
-    switch(this._instance.direction()){
-        case 2:  return d == 8 ? 1 : d == 4 ? 0.5 : d == 6 ? 0.5 : 0; 
-        case 4:  return d == 6 ? 1 : d == 2 ? 0.5 : d == 8 ? 0.5 : 0; 
-        case 6:  return d == 4 ? 1 : d == 2 ? 0.5 : d == 8 ? 0.5 : 0; 
-        case 8:  return d == 2 ? 1 : d == 4 ? 0.5 : d == 6 ? 0.5 : 0; 
-    };
+RPG_EFS_Battler.prototype.clearDisplayDamage = function() {
+    this._displayDamage = 0;
 };
 //=============================================================================
 // Game_EFS_Battler
@@ -419,6 +365,8 @@ Game_EFS_Battler.prototype.initMembers = function() {
     this._commandUnit = null;
 
 };
+//----------------------------------------------------------------------------
+//---------------------------Accessors Related---------------------------------
 Game_EFS_Battler.prototype.setCaptain = function(c) {
     this._captain = c;
 };
@@ -448,6 +396,12 @@ Game_EFS_Battler.prototype.setAvailableTargets = function(targets) {
 Game_EFS_Battler.prototype.attachAvailableTargets = function(arg) {
     this._availableTargets = this._availableTargets.concat(arg);
 
+};
+Game_EFS_Battler.prototype.realMoveSpeed = function() {
+    if (this._hittingBackward) {
+        return this._moveSpeed + 1;
+    }
+    return Game_CharacterBase.prototype.realMoveSpeed.call(this);
 };
 Game_EFS_Battler.prototype.requestAnimation = function(animationId) {
     if (EFSBattleManager.ENABLE_ANIMATIONS)
@@ -490,13 +444,23 @@ Game_EFS_Battler.prototype.assignGoalXY = function(x,y) {
 Game_EFS_Battler.prototype.availableTargets = function() {
     return this._availableTargets;
 };
-//---------------------------------------------------------
-//更新
+Game_EFS_Battler.prototype.animationWait = function() {
+    return (9 - this.realMoveSpeed()) * 3;
+};
+Game_EFS_Battler.prototype.pattern = function() {
+    if (this._isCorpse) {
+        return this._pattern;
+    }
+    return this._pattern < 3 ? this._pattern : 1;
+};
+Game_EFS_Battler.prototype.bloodDroped = function() {
+    return this._bloodDroped;
+};
+//----------------------------------------------------------------------------
+//---------------------------Updates Related----------------------------------
 Game_EFS_Battler.prototype.updateAsCaptain = function() {
-
     this.update();
 };
-//
 Game_EFS_Battler.prototype.update = function() {
     if (this.isJumping()) {
         this.updateJump();
@@ -523,11 +487,9 @@ Game_EFS_Battler.prototype.update = function() {
         //this.updateAsInfantry();
     }
 };
-//---------------------------------------------------------
 Game_EFS_Battler.prototype.updateAsArcher = function() {
     this._shootCounter --;
 };
-
 Game_EFS_Battler.prototype.updateAnimation = function() {
     this.updateAnimationCount();
     if (this._animationCount >= this.animationWait()) {
@@ -541,15 +503,6 @@ Game_EFS_Battler.prototype.updateAnimation = function() {
         }
         this._animationCount = 0;
     }
-};
-Game_EFS_Battler.prototype.animationWait = function() {
-    return (9 - this.realMoveSpeed()) * 3;
-};
-Game_EFS_Battler.prototype.pattern = function() {
-    if (this._isCorpse) {
-        return this._pattern;
-    }
-    return this._pattern < 3 ? this._pattern : 1;
 };
 Game_EFS_Battler.prototype.updateActionPattern = function() {
         if (this._pattern >= this.maxPattern() - 2) {
@@ -579,8 +532,6 @@ Game_EFS_Battler.prototype.updateDeathPattern = function() {
         }
     }
 };
-
-
 Game_EFS_Battler.prototype.updateStop = function() {
     Game_Character.prototype.updateStop.call(this);
     if (!this.isMoveRouteForcing()) {
@@ -608,11 +559,11 @@ Game_EFS_Battler.prototype.updateArcherSelfMovement = function() {
     this.archerSeekTarget();
     this.archerCheckEncounter();
 };
-
 Game_EFS_Battler.prototype.updateSelfMovement = function() {
     if (!this._locked  && !this.isMoving()  &&//&& this.isNearTheScreen()
             this.checkStop(this.stopCountThreshold())) {
         //每移动一次时
+        this._hittingBackward = false;
         if (this._isArcher && this.canShoot()) {
             this.updateArcherSelfMovement();
             if (this.isAttacking()||this.isDefending()||this._shootCounter>0) return;
@@ -636,9 +587,8 @@ Game_EFS_Battler.prototype.updateSelfMovement = function() {
         }
     }
 };
-
-
-
+//----------------------------------------------------------------------------
+//-------------------------Encounter Related----------------------------------
 Game_EFS_Battler.prototype.archerSeekTarget = function() {
     var self = this;
     var least = 9999999;
@@ -733,6 +683,10 @@ Game_EFS_Battler.prototype.onAttackOver = function() {
     this._target = null;
 
 };
+
+//----------------------------------------------------------------------------
+//------------------------------Actions Related-------------------------------
+
 Game_EFS_Battler.prototype.attack = function(target) {
     this.cancelAction();
     this._target = target;
@@ -765,9 +719,7 @@ Game_EFS_Battler.prototype.shootAt = function(target) {
 Game_EFS_Battler.prototype.dropBlood = function() {
     this._bloodDroped = true;
 };
-Game_EFS_Battler.prototype.bloodDroped = function() {
-    return this._bloodDroped;
-};
+
 Game_EFS_Battler.prototype.defend = function(target) {
     this.cancelAction();
     this._target = target;
@@ -778,20 +730,82 @@ Game_EFS_Battler.prototype.defend = function(target) {
     this._characterIndex = 4;
 
 };
+
+//----------------------------------------------------------------------------
+//---------------------------Damage Process Related---------------------------
+
 Game_EFS_Battler.prototype.damageProcess = function(target,missile) {
     target.setDisplayBar(true);
     //temptest
     target.requestAnimation(1);
     if (missile)
-        this._core.dealMissileDamage(target.core(),missile);
+        this.dealMissileDamage(target,missile);
     else{    
-        this._core.dealDamage(target.core());
+        this.dealDamage(target);
         }
     if (target.isDead()) {
         target.processDie();
         EFSBattleManager.displayKillingInfo(target,this);
     }    
 };
+Game_EFS_Battler.prototype.calculateDamageReduce = function(d) {
+    switch(this.direction()){
+        case 2:  return d == 8 ? 0.5 : d == 4 ? 0.75 : d == 6 ? 0.75 : 1; 
+        case 4:  return d == 6 ? 0.5 : d == 2 ? 0.75 : d == 8 ? 0.75 : 1; 
+        case 6:  return d == 4 ? 0.5 : d == 2 ? 0.75 : d == 8 ? 0.75 : 1; 
+        case 8:  return d == 2 ? 0.5 : d == 4 ? 0.75 : d == 6 ? 0.75 : 1; 
+    };
+};
+Game_EFS_Battler.prototype.calculateShieldReduce = function(d) {
+    switch(this.direction()){
+        case 2:  return d == 8 ? 1 : d == 4 ? 0.5 : d == 6 ? 0.5 : 0; 
+        case 4:  return d == 6 ? 1 : d == 2 ? 0.5 : d == 8 ? 0.5 : 0; 
+        case 6:  return d == 4 ? 1 : d == 2 ? 0.5 : d == 8 ? 0.5 : 0; 
+        case 8:  return d == 2 ? 1 : d == 4 ? 0.5 : d == 6 ? 0.5 : 0; 
+    };
+};
+Game_EFS_Battler.prototype.dealDamage = function(target) {
+    var critical = Math.randomInt(100)<this._criticalHit;
+    var d = target.direction();
+    var damageReduce = 1;
+    var shieldReduce = 0;
+    if (target.isDefending()) {
+        shieldReduce = target.calculateShieldReduce(this.direction());
+    }
+    if (critical){
+        target.resetAnimation(0);
+    }else{
+        damageReduce = this.calculateDamageReduce(d);
+    }
+    if (!target.core().isHeavy()) {
+        target.moveBackward();
+    }
+    var finalPiercingAtk = Math.floor(this.core().piercingAtk*damageReduce);
+    var finalAtk = Math.floor(this.core().baseAtk*damageReduce);
+
+    target.core().receiveDamagePiercing(finalPiercingAtk);
+    target.core().receiveDamage(finalAtk,shieldReduce);
+
+    target.core().clearDisplayDamage();
+    
+};
+Game_EFS_Battler.prototype.dealMissileDamage = function(target, missile) {
+    var d = missile.direction();
+    var damageReduce;
+    var shieldReduce = 0;
+    if (target.isDefending()) {
+        shieldReduce = target.calculateShieldReduce(this.direction());
+    }
+    if (Math.randomInt(100)<this._criticalHit) 
+        damageReduce = 1;
+    else{
+        damageReduce = target.calculateDamageReduce(d);
+    }
+    target.core().receiveDamagePiercing(Math.floor(this.core().sPiercingAtk*damageReduce));
+    target.core().receiveDamage(Math.floor(this.core().sBaseAtk*damageReduce),shieldReduce);
+};
+
+
 Game_EFS_Battler.prototype.setDisplayBar = function(bool) {
    this._needDisplayBar = bool;
 };
@@ -825,6 +839,10 @@ Game_EFS_Battler.prototype.processDie = function() {
 
     }
 };
+
+//----------------------------------------------------------------------------
+//------------------------------Movements Related-----------------------------
+
 Game_EFS_Battler.prototype.moveTypeTowardCharacter = function(character) {
         this.moveTowardCharacter(character);
         if (! this._isCalvary && !this.isMovementSucceeded()) {
@@ -835,23 +853,15 @@ Game_EFS_Battler.prototype.moveTypeTowardCharacter = function(character) {
 };
 Game_EFS_Battler.prototype.moveTypeAccompanyWithCaptain = function() {
     if (!this.hasCaptain()) return;
-    // var inCircle = false;
-    // if (this.distanceFrom(this._captain) <= 3){
-    //     this.turnTowardCharacter(this._closetTarget); 
-    //     inCircle = true;
-    // }
-
     var sx = Math.abs(this._captain.deltaXFrom(this._closetTarget.x));
     var sy = Math.abs(this._captain.deltaYFrom(this._closetTarget.y));
     var distance = sx + sy;
     if (distance <= 3){
         this.moveTypeTowardCharacter(this._closetTarget);
-    }else { //if (!inCircle)
-        //this.moveTypeTowardCharacter(this._captain);
+    }else { 
         this.moveTowardGoalXY();
     }
     
-
 };
 Game_EFS_Battler.prototype.moveTowardGoalXY = function() {
     var sx = this.deltaXFrom(this.goalX);
@@ -868,7 +878,10 @@ Game_EFS_Battler.prototype.moveTowardGoalXY = function() {
         }
     }
 };
-
+Game_EFS_Battler.prototype.hitBackward = function() {
+    this._hittingBackward = true;
+    this.moveBackward();
+};
 Game_EFS_Battler.prototype.stopCountThreshold = function() {
     return 30 * (5 - this.moveFrequency());
 };
@@ -926,17 +939,6 @@ Game_EFS_Battler.prototype.isCollidedWithBattlers = function(x, y) {
     return battlers.some(function(game_battler) {
         return game_battler.isNormalPriority();
     });
-    // for (var i = 0; i < battlers.length; i++) {
-    //     var f = battlers[i];
-    //     if (f.isNormalPriority()) {
-    //         if (f._team !== this._team)
-    //             return true;
-    //         if (f._group !== this._group)
-    //             return true;
-    //         if (f.isAttacking() || f.isDefending()) 
-    //             return true;
-    //     }
-    // }
     return false;
 
 };
@@ -1130,17 +1132,16 @@ Game_EFS_Hero.prototype.actionByInput = function() {
 
     }
 
-    
-
 };
-Game_EFS_Hero.prototype.attack = function() {
-    this.cancelAction();
+Game_EFS_Hero.prototype.playPlayerAttackAnimation = function() {
      var shifter = 0;
      if (Math.randomInt(2)===1)
         shifter = 5;
     this.requestAnimation(EFSBattleManager.PLAYER_ATK_ANIMATION + this.direction()/2 - 1 + shifter);
-
-
+};
+Game_EFS_Hero.prototype.attack = function() {
+    this.cancelAction();
+    this.playPlayerAttackAnimation();
     this.setDirectionFix(true);
     this.resetAnimation(0);
     this._actionMode = 1;
@@ -1150,21 +1151,12 @@ Game_EFS_Hero.prototype.attack = function() {
     }else{
         this._characterIndex =  1+Math.randomInt(3);
     }
-//main core of damaging
+    //main core of damaging
     this.findTargesThenDamage();
 
 };
-// function pausecomp(millis)
-//  {
-//   var date = new Date();
-//   var curDate = null;
-//   do { curDate = new Date(); }
-//   while(curDate-date < millis);
-// }
 Game_EFS_Hero.prototype.onAttackOver = function() {
     
-
-
     if (this._missleLaunched) {
         this._missleLaunched = false;
         this.cancelAction();
@@ -1173,18 +1165,17 @@ Game_EFS_Hero.prototype.onAttackOver = function() {
     }
     this.setDirectionFix(false);
     this.cancelAction();
-    //pausecomp(50);
+
 };
 Game_EFS_Hero.prototype.findTargesThenDamage = function() {
     var listFighters = [];
-    var self = this;
     this._availableTargets.forEach(function(target) {
         if(target.isDead())return;
-        var sx = target._realX - self._realX;
-        var sy = target._realY - self._realY;
+        var sx = target._realX - this._realX;
+        var sy = target._realY - this._realY;
         
         if (Math.abs(sx)+Math.abs(sy) <= 2.5) {
-            switch(self.direction()){
+            switch(this.direction()){
                 case 2:     
                     if (sy>=1)
                     listFighters.push(target);
@@ -1204,46 +1195,46 @@ Game_EFS_Hero.prototype.findTargesThenDamage = function() {
                     break;
             }   
         }
-    });
+    },this);
     
     listFighters.forEach(function(f) {
-        self.damageProcess(f);
+        this.damageProcess(f);
         var list = EFSBattleManager.PLAYER_ATK_TARGET_ANIMATIONS;
         f.requestAnimation(list[Math.randomInt(list.length)]);
-        if (! f.core().isHeavy()) {
-            f.moveBackward();
-        }
-    });
+    },this);
     if (listFighters.length > 0) {
         $gameScreen.startShake(3,3,3);
-
     }
 
 };
-
-Game_EFS_Hero.prototype.dealDamage = function(rpg_battler) {
+Game_EFS_Hero.prototype.dealDamage = function(target) {
     var critical = Math.randomInt(100)<this._criticalHit;
-    var d = rpg_battler.getInstance().direction();
+    var d = target.direction();
     var damageReduce;
-    if (critical){
-        rpg_battler.getInstance().resetAnimation(0);
-        damageReduce = 1;
-        if (!rpg_battler.isHeavy()) {
-            rpg_battler.getInstance().moveBackward();
-        }
+    var shieldReduce = 0;
+    if (target.isDefending()) {
+        shieldReduce = target.calculateShieldReduce(this.direction());
     }
-    else{
+    if (critical){
+        target.resetAnimation(0);
+        damageReduce = 1;
+        if (!target.core().isHeavy()) {
+            target.hitBackward();
+        }
+    }else{
         damageReduce = this.calculateDamageReduce(d);
     }
-    // if (rpg_battler.getInstance().isAttacking())
-    //     rpg_battler.getInstance().resetAnimation(0);
-    var finalPiercingAtk = Math.floor(this.piercingAtk*damageReduce);
-    var finalAtk = Math.floor(this.baseAtk*damageReduce);
-    var displayDamage = finalAtk+finalPiercingAtk;
-    rpg_battler.receiveDamagePiercing(finalPiercingAtk);
-    rpg_battler.receiveDamage(finalAtk,this._instance.direction());
-    rpg_battler.getInstance().startDamagePopup(displayDamage,critical);
+    if (this._dashing && !target.core().isHeavy()) {
+            target.hitBackward();
+    }
 
+    var finalPiercingAtk = Math.floor(this.core().piercingAtk*damageReduce);
+    var finalAtk = Math.floor(this.core().baseAtk*damageReduce);
+
+    target.core().receiveDamagePiercing(finalPiercingAtk);
+    target.core().receiveDamage(finalAtk,shieldReduce);
+    target.startDamagePopup(target.core().getDisplayDamage(),critical);
+    target.core().clearDisplayDamage();
 };
 
 Game_EFS_Hero.prototype.canMove = function() {
