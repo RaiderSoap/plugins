@@ -167,7 +167,7 @@ Game_Object.prototype.updateSubObjects = function() {
     }, this);
 };
 Game_Object.prototype.updateOpcaity = function() {
-    if (this._showCharacterPassing && this._areaRect &&
+    if (this._showCharacterPassing && this._areaRect && 
         this._areaRect.contains($gamePlayer.x, $gamePlayer.y)) {
         this._opacity = 155;
     } else {

@@ -23,8 +23,8 @@ Game_Player.prototype.updateScroll = function(lastScrolledX, lastScrolledY) {
     var x2 = this.scrolledX();
     var y2 = this.scrolledY();
 
-    var halfTileWidth   = $gameMap.tileWidth()/2.0;
-    var halfTileHeight   = $gameMap.tileHeight()/2.0;
+    var halfTileWidth   = $gameMap.tileWidth()/3.0;
+    var halfTileHeight   = $gameMap.tileHeight()/3.0;
 
     var yGrid = this.centerY()*2;
     var xGrid = this.centerX()*2;

@@ -83,12 +83,19 @@ EFSBattleManager.E_B_T_COLOR = '#FF8700';
 EFSBattleManager.H_K_E_COLOR = '#FFFF00';
 EFSBattleManager.H_B_E_COLOR = '#FFFF00';
 EFSBattleManager.NORMAL_COLOR = '#FFFFFF';
-EFSBattleManager.DEFAULT_BODY_DISAPPEAR_TIME = 660;
+EFSBattleManager.DEFAULT_BODY_DISAPPEAR_TIME = 1200;
 EFSBattleManager.FRAME_PER_SECOND = 60;
 EFSBattleManager.MISSILES_DISAPPEAR_TIME = 720;
-EFSBattleManager.BLOOD_DISAPPEAR_TIME = 660;
+EFSBattleManager.BLOOD_DISAPPEAR_TIME = 1200;
 EFSBattleManager.ENABLE_ANIMATIONS = true;
 EFSBattleManager.PLAYER_ATK_ANIMATION = 5;
+
+EFSBattleManager.SE_MELEE_HIT = 0;
+EFSBattleManager.SE_BLOCK = 1;
+EFSBattleManager.SE_RANGE_HIT = 2;
+EFSBattleManager.SE_RANGE_LAUNCH = 3;
+EFSBattleManager.SE_RANGE_PASSBY = 4;
+EFSBattleManager.SE_RANGE_DROP = 5;
 
 EFSBattleManager.PLAYER_ATK_TARGET_ANIMATIONS = [15,16,17];
 //=============================================================================
@@ -97,12 +104,15 @@ EFSBattleManager.PLAYER_ATK_TARGET_ANIMATIONS = [15,16,17];
 var $dataSoldier        = null;
 var $dataArmy           = null;
 DataManager._databaseFiles.push({ name: '$dataSoldier',             src: 'EFS_Soldier.json'          },
+                                { name: '$dataSounds',              src: 'EFS_Sound.json'            },
                                 { name: '$dataArmy',                src: 'EFS_DefaultArmies.json'    }
                                 );
 MBBS_MV.Core.DataManager_createGameObjects = DataManager.createGameObjects;
 DataManager.createGameObjects = function() {
     MBBS_MV.Core.DataManager_createGameObjects.call(this);
+    $gameEFSPlayer = null;
 };
+
 //=============================================================================
 // Game_Map
 //=============================================================================
@@ -184,6 +194,9 @@ RPG_EFS_Battler.prototype.initMembers = function(soldierId, cuId) {
     this._name                    = $dataSoldier[soldierId].name; 
     this._characterName           = $dataSoldier[soldierId].characterName;
     this._baseCharacterName       = this._characterName;   
+    //[击中SE,格挡SE,远程击中SE,远程发射SE,弹药经过SE,弹药落地SE]
+    this._seList                  = $dataSoldier[soldierId].seList;
+
     //attributes data
     this._hpMax                   = $dataSoldier[soldierId].hpMax;
     this._hp                      = this._hpMax;
@@ -230,8 +243,6 @@ RPG_EFS_Battler.prototype.initMembers = function(soldierId, cuId) {
     this._initalX                 = 0; 
     this._initalY                 = 0; 
     this._initalD                 = 0; 
-    // important Data
-    this._instance                = null;
     //sprites setting
     this._needDisplayBar = true;
     this._displayDamage = 0;
@@ -241,20 +252,14 @@ RPG_EFS_Battler.prototype.initMembers = function(soldierId, cuId) {
 RPG_EFS_Battler.prototype.isPlayer = function() {
     return this._isPlayer;
 };
-RPG_EFS_Battler.prototype.setInstance = function(game_battler) {
-    this._instance = game_battler;
-};
-RPG_EFS_Battler.prototype.getInstance = function() {
-    return this._instance;
-};
-RPG_EFS_Battler.prototype.clearInstance = function() {
-    this._instance = null;
-};
 RPG_EFS_Battler.prototype.getDefenceSkillPoints = function() {
     return this._defenceSkill;
 };
 RPG_EFS_Battler.prototype.isHeavy = function() {
     return this._isHeavy;
+};
+RPG_EFS_Battler.prototype.getSEList = function() {
+    return this._seList;
 };
 RPG_EFS_Battler.prototype.setInitialPosition = function(x,y,d) {
     this._initalX = x;
@@ -291,10 +296,17 @@ RPG_EFS_Battler.prototype.receiveDamage = function(damage,shieldReduce) {
     }
     this._hp -= damage;
     this._displayDamage += damage;
+
+    if (this._hp<= 0) {
+        this.generateKilled();
+    }
 };
 RPG_EFS_Battler.prototype.receiveDamagePiercing = function(damage) {
     this._hp -= damage;
     this._displayDamage += damage;
+    if (this._hp<= 0) {
+        this.generateKilled();
+    }    
 };
 RPG_EFS_Battler.prototype.getDisplayDamage = function() {
     return this._displayDamage;
@@ -319,22 +331,15 @@ Object.defineProperties(Game_EFS_Battler.prototype, {
 Game_EFS_Battler.prototype.initialize = function(rpg_battler,x,y) {
     Game_Character.prototype.initialize.call(this);
     this._core = rpg_battler;
-    this.locate(x,y);
-    //this.refresh();
-    this._moveSpeed = this._core.moveSpeed;
-    this._characterName = this._core.characterName;
-    //somedata
-    this._ammoMax = this._core.ammoMax;
+    this._moveSpeed = rpg_battler.moveSpeed;
+    this._characterName = rpg_battler.characterName;
+    this._ammoMax = rpg_battler.ammoMax;
     this._ammo = this._ammoMax;
-    this._bloodDroped = false;
+    this._bloodDroped = false; 
+    this.locate(x,y);
+    this._seList = rpg_battler.getSEList();
 };
-Game_EFS_Battler.prototype.core = function() {
-    return this._core;
-};
-Game_EFS_Battler.prototype.refresh = function() {
-    this._characterName = this._core.characterName;
-};
-Game_EFS_Battler.prototype.initMembers = function() {
+Game_EFS_Battler.prototype.initMembers = function() {   
     Game_Character.prototype.initMembers.call(this);
     //important
     this._soldierID = 0;
@@ -367,6 +372,12 @@ Game_EFS_Battler.prototype.initMembers = function() {
 };
 //----------------------------------------------------------------------------
 //---------------------------Accessors Related---------------------------------
+Game_EFS_Battler.prototype.core = function() {
+    return this._core;
+};
+Game_EFS_Battler.prototype.refresh = function() {
+    this._characterName = this._core.characterName;
+};
 Game_EFS_Battler.prototype.setCaptain = function(c) {
     this._captain = c;
 };
@@ -405,7 +416,7 @@ Game_EFS_Battler.prototype.realMoveSpeed = function() {
 };
 Game_EFS_Battler.prototype.requestAnimation = function(animationId) {
     if (EFSBattleManager.ENABLE_ANIMATIONS)
-    this._animationId = animationId;
+        this._animationId = animationId;
 };
 Game_EFS_Battler.prototype.setMoveType = function(type) {
     this._moveType = type;
@@ -738,6 +749,8 @@ Game_EFS_Battler.prototype.damageProcess = function(target,missile) {
     target.setDisplayBar(true);
     //temptest
     target.requestAnimation(1);
+    this.playSe(target,EFSBattleManager.SE_MELEE_HIT);
+
     if (missile)
         this.dealMissileDamage(target,missile);
     else{    
@@ -770,6 +783,7 @@ Game_EFS_Battler.prototype.dealDamage = function(target) {
     var damageReduce = 1;
     var shieldReduce = 0;
     if (target.isDefending()) {
+        target.playSe(target,EFSBattleManager.SE_BLOCK);
         shieldReduce = target.calculateShieldReduce(this.direction());
     }
     if (critical){
@@ -794,6 +808,7 @@ Game_EFS_Battler.prototype.dealMissileDamage = function(target, missile) {
     var damageReduce;
     var shieldReduce = 0;
     if (target.isDefending()) {
+        target.playSe(target,EFSBattleManager.SE_BLOCK);
         shieldReduce = target.calculateShieldReduce(this.direction());
     }
     if (Math.randomInt(100)<this._criticalHit) 
@@ -818,7 +833,7 @@ Game_EFS_Battler.prototype.processDie = function() {
         this._isCorpse = true;
         this._moveSpeed = 5;
         //generate_killed
-        this.core().generateKilled();
+        //this.core().generateKilled();
         this.cancelAction();
         this.resetAnimation(-1);
         this._characterIndex = 5;
@@ -878,9 +893,12 @@ Game_EFS_Battler.prototype.moveTowardGoalXY = function() {
         }
     }
 };
-Game_EFS_Battler.prototype.hitBackward = function() {
+Game_EFS_Battler.prototype.hitBackward = function(d) {
     this._hittingBackward = true;
-    this.moveBackward();
+    var lastDirectionFix = this.isDirectionFixed();
+    this.setDirectionFix(true);
+    this.moveStraight(d);
+    this.setDirectionFix(lastDirectionFix);    
 };
 Game_EFS_Battler.prototype.stopCountThreshold = function() {
     return 30 * (5 - this.moveFrequency());
@@ -961,6 +979,16 @@ Game_EFS_Battler.prototype.isCollidedWithBattlers = function(x, y) {
 //         }
 //     }
 // };
+
+
+Game_EFS_Battler.prototype.playSe = function(target,type) {
+    var list = $dataSounds[this._seList[type]].se;
+    var se = list[Math.randomInt(list.length)];
+    se.volume = this.seVolume(target);
+    if (target) {
+        AudioManager.playSe(se);
+    }
+};
 
 Game_EFS_Battler.prototype.seVolume = function(target) {
     if (target === null) {
@@ -1044,7 +1072,6 @@ Game_EFS_Hero.prototype.isDashing = function() {
 Game_EFS_Hero.prototype.update = function() {
     var lastScrolledX = this.scrolledX();
     var lastScrolledY = this.scrolledY();
-    var wasMoving = this.isMoving();
     //------------------
     this.originUpdate();
     if (this.isDead())return;
@@ -1119,14 +1146,35 @@ Game_EFS_Hero.prototype.moveByInput = function() {
 };
 Game_EFS_Hero.prototype.actionByInput = function() {
     //attack
-    if (!this.isAttacking()) {
+    if (!this.isAttacking() && !this.isJumping()) {
         if (Input.isTriggered('ok')) {
             this.attack();
         }
     }
-    //if (!this.isJumping) {
-
-    //}
+    if (!this.isJumping()) {
+        if (InputExtra.isTriggered(65)) {
+            // this.cancelAction();
+            // this.resetAnimation();
+            var lastDirectionFix = this.isDirectionFixed();
+            this.setDirectionFix(true);    
+            var d = this.direction();
+            switch(d){
+                case 2:
+                    this.jump(0,2);
+                    break;
+                case 4:
+                    this.jump(-2,0);
+                    break;
+                case 6:
+                    this.jump(2,0);
+                    break;
+                case 8:
+                    this.jump(0,-2);
+            }
+            this.setDirectionFix(lastDirectionFix);
+            
+        }
+    }
     if (Input.isTriggered("pageup")) {
         EFSBattleManager.spawnNewBattler(0,1,1);
 
@@ -1219,13 +1267,13 @@ Game_EFS_Hero.prototype.dealDamage = function(target) {
         target.resetAnimation(0);
         damageReduce = 1;
         if (!target.core().isHeavy()) {
-            target.hitBackward();
+            target.hitBackward(this.direction());
         }
     }else{
         damageReduce = this.calculateDamageReduce(d);
     }
     if (this._dashing && !target.core().isHeavy()) {
-            target.hitBackward();
+            target.hitBackward(this.direction());
     }
 
     var finalPiercingAtk = Math.floor(this.core().piercingAtk*damageReduce);
@@ -1399,8 +1447,7 @@ Game_EFS_CommandUnits.FORMATION_PIKE_A,
 
 
 Game_EFS_CommandUnits.prototype.initialize = function(rpg_commandunit,x,y,d) {
-    this.initMembers();
-    this._rpgCommandUnit = rpg_commandunit;
+    this.initMembers(rpg_commandunit);
     if (!x && !y && !d) {
         this.instantSetup(rpg_commandunit);
     }else{
@@ -1409,26 +1456,8 @@ Game_EFS_CommandUnits.prototype.initialize = function(rpg_commandunit,x,y,d) {
     this.arrangeCaptainMembers();
     //this.assignSlotFormation();
 };
-/*
-    return all the members(no captain) that is not dead or ran away
-*/
-Game_EFS_CommandUnits.prototype.findAvailableMembers = function() {
-    var result = [];
-    this._fighters.forEach(function(f) {
-        if (f.isDead())return;
-        result.push(f);
-    });
-    if (result.length>1)
-        result.shift();
-    else
-        result = []; 
-    return result;
-};
-Game_EFS_CommandUnits.prototype.availableMembers = function() {
-    return this._availableMembers;
-};
-Game_EFS_CommandUnits.prototype.initMembers = function() {
-    this._rpgCommandUnit = null;
+Game_EFS_CommandUnits.prototype.initMembers = function(rpg_commandunit) {
+    this._rpgCommandUnit = rpg_commandunit;
     this._fighters = [];
     this._captain = null;
     this._id = 0;
@@ -1438,8 +1467,21 @@ Game_EFS_CommandUnits.prototype.initMembers = function() {
     //this._formation = Game_EFS_CommandUnits.FORMATIONS_LIST[0];
     this.setFormation(0);
 };
+/*
+    return all the members(no captain) that is not dead or ran away
+*/
+Game_EFS_CommandUnits.prototype.findAvailableMembers = function() {
+    var result = this._fighters.filter(function(f) {return !f.isDead();});
+    if (result.length>1){
+        result.shift();
+    }
+    return result;
+};
+Game_EFS_CommandUnits.prototype.availableMembers = function() {
+    return this._availableMembers;
+};
 Game_EFS_CommandUnits.prototype.setFormation = function(id) {
-    if (id>=Game_EFS_CommandUnits.FORMATIONS_LIST.size) {
+    if (id>=Game_EFS_CommandUnits.FORMATIONS_LIST.length) {
         console.log("Formation does not exist: "+id);
         this._formation = Game_EFS_CommandUnits.FORMATIONS_LIST[0]
         return;
@@ -1451,72 +1493,50 @@ Game_EFS_CommandUnits.prototype.onBattlerDie = function() {
     this.assignSlotFormation();
 };
 Game_EFS_CommandUnits.prototype.arrangeCaptainMembers = function() {
-    var self = this;
     this._captain = this.captain();
     this._availableMembers = this.findAvailableMembers();
     this._fighters.forEach(function(f) {
-        f.setCaptain(self._captain);
-    });
+        f.setCaptain(this._captain);
+    },this);
     if (this._captain)
     this._captain.setMoveType(2);
 };
 
 Game_EFS_CommandUnits.prototype.assignSlotFormation = function() {
     //temp test
-    if (!this._captain) return;
+    if (!this._captain){
+        return;
+    }
     var t = this.findClosetCommandUnit();
-    if (t)
+    if (t){
         var d = this.directionToward(t);
-    else    
-    // this._captain.turnTowardCharacter(this._captain._closetTarget);
+    }
+    else{
         var d = this._captain.direction();
-    var formation;
-    formation = this._formation[d/2-1];
-    // switch (d) {
-    // case 2:
-    //     formation = Game_EFS_CommandUnits.FORMATION_RECTANGLE_A_DOWN;
-    //     //formation = Game_EFS_CommandUnits.FORMATION_LOOSE_DOWN;
-    //     break;
-    // case 4:
-    //     formation = Game_EFS_CommandUnits.FORMATION_RECTANGLE_A_LEFT;
-    //     //formation = Game_EFS_CommandUnits.FORMATION_LOOSE_LEFT;
-    //     break;
-    // case 6:
-    //     formation = Game_EFS_CommandUnits.FORMATION_RECTANGLE_A_RIGHT;
-    //     //formation = Game_EFS_CommandUnits.FORMATION_LOOSE_RIGHT;
-    //     break;
-    // case 8:
-    //     formation = Game_EFS_CommandUnits.FORMATION_RECTANGLE_A_UP;
-    //     //formation = Game_EFS_CommandUnits.FORMATION_LOOSE_UP;
-    //     break;
-    // };
+    }    
+    var formation = this._formation[d/2-1];
     var i = 1;
     this._availableMembers.forEach(function(battler) {
         if (formation[i]) {
-            //console.log(formation[i].x+" "+formation[i].y);
             battler.assignGoalXY(formation[i].x,formation[i].y);
         }else{
             battler.assignGoalXY(0,0);
         }        
         i++;
     });
-    // this._availableMembers.forEach(function(battler) {
-    //     console.log(battler.goalX+"  "+battler.goalY);
-    // });
 };
 Game_EFS_CommandUnits.prototype.findClosetCommandUnit = function() {
     var least = 9999999;
-    var self = this;
     var result = null;
     this._availableTargets.forEach(function(target) {
         if (target._captain) {
-            var distance = self._captain.distanceFrom(target._captain);
+            var distance = this._captain.distanceFrom(target._captain);
             if (distance < least) {
                 least = distance;
                 result = target;
             }
         }
-    });
+    },this);
     return result;
 };
 Game_EFS_CommandUnits.prototype.directionToward = function(gameCu) {
@@ -1551,7 +1571,6 @@ Game_EFS_CommandUnits.prototype.setup = function(rpg_commandunits,x,y,d) {
         }else{
             gb = new Game_EFS_Battler(rpg_battler,x+i,y);
         } 
-        rpg_battler.setInstance(gb);
         this.createFighterSprit(gb);
         this._fighters.push(gb);
         $gameMap.getBattlerObjects().push(gb);
@@ -1573,7 +1592,6 @@ Game_EFS_CommandUnits.prototype.instantSetup = function(rpg_commandunits) {
         }else{
             gb = new Game_EFS_Battler(f,f.initalX,f.initalY);
         }
-        f.setInstance(gb);
         this.createFighterSprit(gb);
         this._fighters.push(gb);
         $gameMap.getBattlerObjects().push(gb);
@@ -1599,7 +1617,6 @@ Game_EFS_CommandUnits.prototype.insertBattler = function(soldierId) {
     }else{
         gb = new Game_EFS_Battler(rpg_battler,x,y);
     };
-    rpg_battler.setInstance(gb);
     this.createFighterSprit(gb);
     gb.setAvailableTargets(this._availableBattlerTargets);
     
@@ -1640,7 +1657,6 @@ Game_EFS_CommandUnits.prototype.update = function() {
     this._fighters.forEach(function(f) {
         f.update();
     });
-
 };
 // --------------------------------------------------
 Game_EFS_CommandUnits.prototype.setMoveType = function(type) {
@@ -1687,7 +1703,7 @@ Game_EFS_CommandUnits.prototype.isEmpty = function() {
 //=============================================================================
 // RPG Command Units
 //=============================================================================
-RPG_EFS_CommandUnits.TEMP_TEST_FIGHTERS = [1,1,1,2,2,3,1,1,1,2,2,3,1,1,1,2,2,3,1,1,1,2,2,3,1,1,1];
+RPG_EFS_CommandUnits.TEMP_TEST_FIGHTERS = [1,1,1,1,1,1];
 Object.defineProperties(RPG_EFS_CommandUnits.prototype, {
     id:      { get: function() { return this._id;     }, configurable: false},
 });
@@ -1773,12 +1789,12 @@ RPG_EFS_CommandUnits.prototype.createFighters = function(soldierId) {
 // Command_Unit_AI 
 //=============================================================================
 /*
-Game_EFS_CommandUnits.prototype.setMoveType
-Game_EFS_CommandUnits.prototype.directionToward
-Game_EFS_CommandUnits.prototype.findClosetCommandUnit
-this._availableTargets
-Game_EFS_CommandUnits.prototype.findAvailableMembers
-Game_EFS_CommandUnits.prototype.setFormation
+    Game_EFS_CommandUnits.prototype.setMoveType
+    Game_EFS_CommandUnits.prototype.directionToward
+    Game_EFS_CommandUnits.prototype.findClosetCommandUnit
+    this._availableTargets
+    Game_EFS_CommandUnits.prototype.findAvailableMembers
+    Game_EFS_CommandUnits.prototype.setFormation
 */
 
 Object.defineProperties(Command_Unit_AI.prototype, {
@@ -1905,7 +1921,6 @@ EFSBattleManager.initMembers = function() {
 
     this._inEFSBattle = false;
 
-
     this._OtherTeamsAllDead = false;
     this._playerTeamAllDead = false;
 
@@ -1924,7 +1939,6 @@ EFSBattleManager.initMembers = function() {
     this._rewards = {};
     //============ EFS 
     this._spawns = [];
-
 
     //inputs
     this._isShowingHPMPBar = false;
@@ -2300,8 +2314,6 @@ EFSBattleManager.updateBattleEnd = function() {
         return;
     }
 
-    
-
     if (this.isInstantBattle()) { // 即可战斗中
             if (this._canLose) {
                SceneManager.goto(Scene_Map);
@@ -2327,11 +2339,8 @@ EFSBattleManager.updateBattleEnd = function() {
     this._phase = null;
     $gameMap.clearBattlerObjects();
 
-
-
 };
 EFSBattleManager.displayKillingInfo = function(target, attacker) {
-    
     if (attacker==null) { //自然伤害
         if (target._team==0) { // 我军
             if (target.core().isKilled()) 
@@ -2483,11 +2492,6 @@ Scene_EFS_Battle.prototype.stop = function() {
     this.startFadeOut(this.slowFadeSpeed(), false);
     $gamePlayer.backToMapAfterBattle();
 };
-
-
-
-
-
 
 Scene_EFS_Battle.prototype.terminate = function() {
     Scene_Base.prototype.terminate.call(this);
@@ -2723,7 +2727,6 @@ Game_Map.prototype.updateMissiles = function() {
 
 Game_Player.prototype.startEFSBattle = function(instant){
     
-
     //attackers, defenders, canEscape, canLose, callBackEvent
     var teamOne = $gameParty.allMembers()[0].getCommandUnits();
     var teamTwo = $gameParty.allMembers()[1].getCommandUnits();
@@ -2736,7 +2739,6 @@ Game_Player.prototype.startEFSBattle = function(instant){
             console.log("started...");
         }
     }else{
-        //console.log(teamOne.length+" "+teamTwo.length+" "+[teamOne,teamTwo].length);
         var armies = [];
         armies.push(teamOne);
         armies.push(teamTwo);
