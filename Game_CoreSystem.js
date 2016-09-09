@@ -11,7 +11,7 @@ Game_CoreSystem.Core = Game_CoreSystem.Core || {};
 // Core Game Global Constants
 //=============================================================================
 Game_CoreSystem.OBEJECT_ID_TREES = [1, 2, 3, 4, 5, 6, 7];
-Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS = [9, 10, 11, 12];
+Game_CoreSystem.OBEJECT_ID_CONSTRUCTIONS = [9, 10, 11, 12, 13];
 
 //=============================================================================
 //DataManager

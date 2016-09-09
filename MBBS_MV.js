@@ -609,7 +609,7 @@ Game_EFS_Battler.prototype.archerSeekTarget = function() {
             return;
         };
         var distance = f.distanceFrom(self);
-        if (distance <= self._core._atkRange) {
+        if (distance <= self._core._engageRange) {
             self._archerTargets.push (f);
         }
         if (distance < least) {
@@ -786,6 +786,11 @@ Game_EFS_Battler.prototype.dealDamage = function(target) {
         target.playSe(target,EFSBattleManager.SE_BLOCK);
         shieldReduce = target.calculateShieldReduce(this.direction());
     }
+    if (target.core().isPlayer()) {
+        $gameScreen.startShake(5,6,3);
+        $gameScreen.startFlashForDamage();
+    }
+
     if (critical){
         target.resetAnimation(0);
     }else{
@@ -793,6 +798,7 @@ Game_EFS_Battler.prototype.dealDamage = function(target) {
     }
     if (!target.core().isHeavy()) {
         target.moveBackward();
+        //target.hitBackward();
     }
     var finalPiercingAtk = Math.floor(this.core().piercingAtk*damageReduce);
     var finalAtk = Math.floor(this.core().baseAtk*damageReduce);
@@ -982,6 +988,10 @@ Game_EFS_Battler.prototype.isCollidedWithBattlers = function(x, y) {
 
 
 Game_EFS_Battler.prototype.playSe = function(target,type) {
+    if (!this._seList[type]) {
+        return;
+    }
+
     var list = $dataSounds[this._seList[type]].se;
     var se = list[Math.randomInt(list.length)];
     se.volume = this.seVolume(target);
@@ -1251,7 +1261,7 @@ Game_EFS_Hero.prototype.findTargesThenDamage = function() {
         f.requestAnimation(list[Math.randomInt(list.length)]);
     },this);
     if (listFighters.length > 0) {
-        $gameScreen.startShake(3,3,3);
+        $gameScreen.startShake(4,4,3);
     }
 
 };
