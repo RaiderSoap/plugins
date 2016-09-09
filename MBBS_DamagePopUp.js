@@ -3,7 +3,9 @@
 // MBBS_DamagePopUp.js
 //=============================================================================
 /*:
- * @plugindesc v1.0 MBBS Plugins: MBBS_DamagePopUp
+ * @plugindesc v1.0 MBBS Plugins: 
+   群战系统MV插件系列之 - 群战伤害显示
+   MBBS_DamagePopUp
  * @author Chivalry Studio Plugins / Ivan
 
 
