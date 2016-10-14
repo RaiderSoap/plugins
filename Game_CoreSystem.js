@@ -311,12 +311,12 @@ Game_Construction.prototype.initMembers = function(objectId, x, y) {
         this._maxDurability = 0;
         this._requiredResources = [];
         this._requiredResourcesAmoundt = [];
-        this._pointRecieveMaterial = null;
+        this._pointsRecieveMaterial = null;
 
     }
-    //=============================================================================
-    // Game_Resource
-    //=============================================================================
+//=============================================================================
+// Game_Resource
+//=============================================================================
 function Game_Resource() {
     this.initialize.apply(this, arguments);
 }
@@ -339,6 +339,15 @@ Game_Resource.prototype.harvest = function() {
 };
 //=============================================================================
 // Game_Map
+
+// data array:
+// this._objects
+// this._objectsLayer
+// this._objectsFoundations
+
+// trigger:
+// _isPausingCharacters
+
 //=============================================================================
 Game_CoreSystem.Core.Game_Map_initialize = Game_Map.prototype.initialize;
 Game_Map.prototype.initialize = function() {
@@ -581,6 +590,9 @@ Sprite_Object.prototype.updateOpcaity = function() {
 };
 //=============================================================================
 // Spriteset_Map
+// sprites array:
+// this._objectLowerLayerSprites
+// this._objectUpperLayerSprites
 //=============================================================================
 Game_CoreSystem.Core.Spriteset_Map_createLowerLayer = Spriteset_Map.prototype.createLowerLayer;
 Spriteset_Map.prototype.createLowerLayer = function() {

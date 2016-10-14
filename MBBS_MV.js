@@ -3213,6 +3213,8 @@ Spriteset_Map.prototype.removeMissile = function(sprite_missile) {
 // Spriteset_Map.prototype.removeBattlersSprite = function(sb) {
 //     this._characterSprites.splice(this._characterSprites.indexOf(sb),1);
 // };
+
+
 //=============================================================================
 // End of File
 //=============================================================================
