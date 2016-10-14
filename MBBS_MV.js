@@ -1,4 +1,42 @@
+//=============================================================================
+// Mount Blade Battle System Engine Plugins - Core Engine
+// MBBS_MV.js
+//=============================================================================
+/*:
+ * @plugindesc v1.0 Basic EFS Core Engine
+ * @author Chivalry Studio Plugins / Ivan
+ * @param ---Game---
+ * @default 
+ * @param Maxium Armies 
+ * @desc Maxium Armies(not soldiers) allowed in each EFS battle. 
+ * Default: 4 
+ * @default 4 
+ * @param Maxium Command Unites 
+ * @desc Maxium Command Unites per Army, groups. 
+ * Default: 5 
+ * @default 5 
+ * @param Spawn Area RegionIDs 
+ * @desc The Region Id start with n..n + Maxium Armies 
+ * Default: 5 (5...9)
+ * @default 5 
+ * @param Maxium Units allowed in EFS battle. 
+ * @desc Total number of soldiers deployed on the map per battle
+ * Default: 50
+ * @default 50 
+ * @param Maxium Battler in Infantry Command Units
+ * @desc don't set this more than 20 unless you modified the Game_CommandUnits Formations.
+ * Default: 20
+ * @default 20
+ * @param Maxium Battler in Calvary Command Units
+ * @desc don't set this more than 15 unless you modified the Game_CommandUnits Formations.
+ * Default: 15
+ * @default 15
+ * @param Maxium Battler in Missle Command Units
+ * @desc don't set this more than 18 unless you modified the Game_CommandUnits Formations.
+ * Default: 18
+ * @default 18
 
+*/
 var Imported = Imported || {};
 Imported.MBBS_MV = true;
 var MBBS_MV = MBBS_MV || {};
