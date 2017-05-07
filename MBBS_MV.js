@@ -137,7 +137,7 @@ RPG_EFS_Battler.prototype.initialize = function(soldierId, cuId) {
     //temp test
     
     //calculate states
-
+    
 };
 Object.defineProperties(RPG_EFS_Battler.prototype, {
     initalX:        { get: function() { return this._initalX;       }, configurable: true},
